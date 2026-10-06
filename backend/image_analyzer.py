@@ -86,7 +86,23 @@ def analyze_crop_image(
             logger.warning(f"Bedrock multimodal vision call failed or unavailable ({e}); using agricultural domain engine.")
 
     # Agricultural domain rule-engine for diagnosis
-    return _domain_agricultural_diagnosis(crop_name, crop_stage, district, image_base64, lang)
+    res = _domain_agricultural_diagnosis(crop_name, crop_stage, district, image_base64, lang)
+
+    # Archive to S3 bucket if available
+    if image_base64:
+        try:
+            import time
+            from backend.s3_client import upload_crop_diagnostic_image
+            clean_b64 = image_base64.split(",")[-1]
+            img_bytes = base64.b64decode(clean_b64)
+            fname = f"{district}_{crop_name}_{int(time.time())}.jpg"
+            s3_uri = upload_crop_diagnostic_image(img_bytes, fname, content_type=mime_type)
+            if s3_uri:
+                res["s3_image_uri"] = s3_uri
+        except Exception as e:
+            logger.debug(f"S3 diagnostic photo archive skipped: {e}")
+
+    return res
 
 def _domain_agricultural_diagnosis(crop: str, stage: str, district: str, image_data: str, lang: str = "mr") -> Dict[str, Any]:
     raw_l = (lang or "mr").lower().strip()

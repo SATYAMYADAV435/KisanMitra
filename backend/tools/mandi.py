@@ -29,6 +29,34 @@ MANDI_MODE = os.environ.get("MANDI_MODE", "api").lower() # 'api' or 'csv'
 
 def _load_csv_records() -> List[Dict[str, Any]]:
     records = []
+    # Check S3 first
+    try:
+        from backend.s3_client import get_s3_client, BUCKET_NAME
+        client = get_s3_client()
+        if client:
+            resp = client.get_object(Bucket=BUCKET_NAME, Key="data/mandi_prices.csv")
+            csv_text = resp["Body"].read().decode("utf-8")
+            reader = csv.DictReader(io.StringIO(csv_text))
+            for row in reader:
+                try:
+                    records.append({
+                        "date": row["date"],
+                        "market": row["market"],
+                        "district": row["district"].lower(),
+                        "commodity": row["commodity"].lower(),
+                        "min_price": int(row["min_price"]),
+                        "max_price": int(row["max_price"]),
+                        "modal_price": int(row["modal_price"]),
+                        "source": "AWS S3 Verified Mandi Archives"
+                    })
+                except (ValueError, KeyError):
+                    continue
+            if records:
+                logger.info(f"Loaded {len(records)} mandi records from s3://{BUCKET_NAME}/data/mandi_prices.csv")
+                return records
+    except Exception as e:
+        logger.debug(f"S3 Mandi CSV load skipped ({e}); using local file.")
+
     if not MANDI_CSV.exists():
         return records
     with open(MANDI_CSV, "r", encoding="utf-8") as f:
@@ -48,6 +76,7 @@ def _load_csv_records() -> List[Dict[str, Any]]:
             except (ValueError, KeyError):
                 continue
     return records
+
 
 def _load_cached_api_records(commodity: str, district: Optional[str] = None) -> List[Dict[str, Any]]:
     c_clean = commodity.strip().lower()

@@ -324,6 +324,25 @@ def lambda_handler(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]
             }, ensure_ascii=False)
         }
 
+    if raw_path in ("/api/cloud-status", "/cloud-status"):
+        from backend.s3_client import check_s3_connection
+        s3_info = check_s3_connection()
+        lambda_url = os.environ.get("LAMBDA_ENDPOINT", "https://k76r7b2zmycfizyb2bsevadqhm0ofgup.lambda-url.eu-north-1.on.aws/")
+        return {
+            "statusCode": 200,
+            "headers": CORS_HEADERS,
+            "body": json.dumps({
+                "status": "online",
+                "s3": s3_info,
+                "lambda": {
+                    "function_name": os.environ.get("LAMBDA_FUNCTION_NAME", "kisaanmitrav1"),
+                    "endpoint": lambda_url,
+                    "region": os.environ.get("AWS_REGION", "eu-north-1"),
+                    "connected": True
+                }
+            }, ensure_ascii=False)
+        }
+
     # Parse body
     try:
         body_str = event.get("body", "{}")

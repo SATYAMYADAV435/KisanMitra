@@ -16,10 +16,21 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 CROPS_FILE = DATA_DIR / "crops.json"
 
 def _load_crops() -> List[Dict[str, Any]]:
+    # Attempt S3 first
+    try:
+        from backend.s3_client import get_s3_client, BUCKET_NAME
+        client = get_s3_client()
+        if client:
+            resp = client.get_object(Bucket=BUCKET_NAME, Key="data/crops.json")
+            return json.loads(resp["Body"].read().decode("utf-8"))
+    except Exception:
+        pass
+
     if not CROPS_FILE.exists():
         return []
     with open(CROPS_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
+
 
 def recommend_crops(profile: FarmerProfile) -> Dict[str, Any]:
     """

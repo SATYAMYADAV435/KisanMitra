@@ -36,6 +36,7 @@ class KisanApp {
     await this.loadAllI18n();
     await this.loadRegions();
     this.setupSpeechEvents();
+    this.loadCloudStatus();
 
     // Check saved language or default to English
     const savedLang = localStorage.getItem('km_user_language');
@@ -106,6 +107,18 @@ class KisanApp {
       }
     } catch (e) {
       console.warn('Could not load /api/regions:', e);
+    }
+  }
+
+  async loadCloudStatus() {
+    try {
+      const res = await fetch('/api/cloud-status');
+      if (res.ok) {
+        this.cloudStatus = await res.json();
+        console.log('AWS Cloud Status:', this.cloudStatus);
+      }
+    } catch (e) {
+      console.debug('Could not load /api/cloud-status:', e);
     }
   }
 

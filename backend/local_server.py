@@ -39,6 +39,22 @@ FRONTEND_DIR = WORKSPACE_ROOT / "frontend"
 def health_check():
     return {"status": "ok", "service": "kisanmitra-local", "mode": "mirror"}
 
+@app.get("/api/cloud-status")
+def cloud_status():
+    from backend.s3_client import check_s3_connection
+    s3_info = check_s3_connection()
+    lambda_url = os.environ.get("LAMBDA_ENDPOINT", "https://k76r7b2zmycfizyb2bsevadqhm0ofgup.lambda-url.eu-north-1.on.aws/")
+    return {
+        "status": "online",
+        "s3": s3_info,
+        "lambda": {
+            "function_name": os.environ.get("LAMBDA_FUNCTION_NAME", "kisaanmitrav1"),
+            "endpoint": lambda_url,
+            "region": os.environ.get("AWS_REGION", "eu-north-1"),
+            "connected": True
+        }
+    }
+
 @app.options("/chat")
 def chat_options():
     return Response(
