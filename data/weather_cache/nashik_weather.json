@@ -3,14 +3,14 @@
   "latitude": 20.0,
   "longitude": 73.78,
   "current": {
-    "temperature_c": 32.3,
-    "apparent_temperature_c": 33.6,
+    "temperature_c": 32.2,
+    "apparent_temperature_c": 33.2,
     "soil_temperature_0cm": 23.7,
-    "condition": "हलकी रिमझिम",
-    "condition_en": "Light drizzle",
-    "condition_hi": "हल्की बूंदाबांदी",
-    "wind_speed_kmh": 9.5,
-    "humidity_pct": 31,
+    "condition": "स्वच्छ आकाश",
+    "condition_en": "Clear sky",
+    "condition_hi": "साफ आसमान",
+    "wind_speed_kmh": 8.1,
+    "humidity_pct": 32,
     "precipitation_mm": 0.3
   },
   "forecast_7d": [

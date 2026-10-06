@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>KisanMitra — Gate A Speech Test</title>
+  <style>
+    body { font-family: sans-serif; background: #FAF6EE; color: #1E241E; padding: 24px; max-width: 600px; margin: 0 auto; }
+    h1 { color: #C85A32; font-size: 20px; }
+    .status-box { background: #FFFFFF; border: 1px solid #E8DEC8; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    .btn { background: #C85A32; color: #FFFFFF; border: none; padding: 10px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-right: 8px; margin-bottom: 8px; }
+    .btn:hover { background: #a64320; }
+    pre { background: #f4eee1; padding: 10px; border-radius: 6px; font-size: 13px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>KisanMitra — Gate A Voice Diagnostics</h1>
+  <div class="status-box">
+    <h3>Environment Support</h3>
+    <div id="stt-status">STT: checking...</div>
+    <div id="tts-status">TTS: checking...</div>
+    <div id="voices-count">Installed Voices: 0</div>
+  </div>
+
+  <div class="status-box">
+    <h3>TTS Audio Test</h3>
+    <button class="btn" onclick="testTTS('mr', 'नमस्कार, किसान मित्र मध्ये आपले स्वागत आहे.')">Speak Marathi (मराठी)</button>
+    <button class="btn" onclick="testTTS('hi', 'नमस्ते, किसान मित्र में आपका स्वागत है।')">Speak Hindi (हिंदी)</button>
+    <button class="btn" onclick="testTTS('en', 'Welcome to KisanMitra.')">Speak English</button>
+    <div id="tts-result" style="margin-top: 8px;"></div>
+  </div>
+
+  <div class="status-box">
+    <h3>STT Mic Test</h3>
+    <button class="btn" onclick="testSTT('mr')">Listen Marathi</button>
+    <button class="btn" onclick="testSTT('hi')">Listen Hindi</button>
+    <button class="btn" onclick="testSTT('en')">Listen English</button>
+    <div id="stt-result" style="margin-top: 8px;"></div>
+  </div>
+
+  <div class="status-box">
+    <h3>Available Voices Log</h3>
+    <pre id="voices-list">Loading voices...</pre>
+  </div>
+
+  <script src="speech.js"></script>
+  <script>
+    const speech = new KisanSpeech();
+    document.getElementById('stt-status').innerText = 'STT Supported: ' + speech.isSTTSupported();
+    document.getElementById('tts-status').innerText = 'TTS Supported: ' + speech.isTTSSupported();
+
+    function updateVoiceList() {
+      const voices = speech.loadVoices();
+      document.getElementById('voices-count').innerText = 'Installed Voices: ' + voices.length;
+      const mrVoice = speech.getBestVoice('mr');
+      const hiVoice = speech.getBestVoice('hi');
+      const enVoice = speech.getBestVoice('en');
+
+      let listText = 'Total: ' + voices.length + '\n';
+      listText += 'Marathi Best Voice: ' + (mrVoice ? mrVoice.name + ' (' + mrVoice.lang + ')' : 'None') + '\n';
+      listText += 'Hindi Best Voice: ' + (hiVoice ? hiVoice.name + ' (' + hiVoice.lang + ')' : 'None') + '\n';
+      listText += 'English Best Voice: ' + (enVoice ? enVoice.name + ' (' + enVoice.lang + ')' : 'None') + '\n\n';
+      listText += 'All Voices:\n' + voices.map(v => v.name + ' [' + v.lang + ']').join('\n');
+      document.getElementById('voices-list').innerText = listText;
+    }
+
+    setTimeout(updateVoiceList, 300);
+    if (speech.synthesis) {
+      speech.synthesis.onvoiceschanged = updateVoiceList;
+    }
+
+    function testTTS(lang, text) {
+      document.getElementById('tts-result').innerText = 'Speaking ' + lang + '...';
+      speech.speak({
+        text: text,
+        lang: lang,
+        onStart: () => { document.getElementById('tts-result').innerText = 'Started speaking ' + lang; },
+        onEnd: () => { document.getElementById('tts-result').innerText = 'Finished speaking ' + lang; },
+        onError: (err) => { document.getElementById('tts-result').innerText = 'TTS Error: ' + JSON.stringify(err); }
+      });
+    }
+
+    function testSTT(lang) {
+      document.getElementById('stt-result').innerText = 'Listening for ' + lang + '...';
+      speech.startListening({
+        lang: lang,
+        onStart: () => { document.getElementById('stt-result').innerText = 'Mic listening in ' + lang + '... Speak now!'; },
+        onInterim: (text) => { document.getElementById('stt-result').innerText = 'Interim: ' + text; },
+        onFinal: (text) => { document.getElementById('stt-result').innerText = 'Final: ' + text; },
+        onError: (err) => { document.getElementById('stt-result').innerText = 'STT Error: ' + (err.error || JSON.stringify(err)); },
+        onEnd: (final) => { document.getElementById('stt-result').innerText = 'Ended. Captured: ' + final; }
+      });
+    }
+  </script>
+</body>
+</html>

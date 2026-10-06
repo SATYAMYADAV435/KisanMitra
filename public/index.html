@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>KisanMitra — Personalized AI Farming Assistant</title>
+  <meta name="description" content="KisanMitra: Personalized AI farming companion for Indian farmers with multi-farm management, voice advisory, live weather, and crop image diagnosis.">
+  <meta name="theme-color" content="#F0FDF4">
+
+  <!-- Google Fonts: Outfit & Baloo 2 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="app-wrapper">
+    <!-- Top Header & Controls -->
+    <header class="top-header">
+      <div class="top-bar-row">
+        <div class="brand-section">
+          <div class="brand-logo-badge">🌾</div>
+          <div>
+            <div class="brand-title" id="app-title">KisanMitra</div>
+            <div class="brand-subtitle" id="app-subtitle">Your Trusted AI Farming Companion</div>
+          </div>
+        </div>
+
+        <button class="user-profile-btn" id="user-profile-btn" onclick="app.handleAuthButtonClick()">
+          <span id="user-display-name">👤 Sign In</span>
+        </button>
+      </div>
+
+      <div class="top-bar-row">
+        <!-- Active Farm Pill (Clicking opens Farm Switcher / Location) -->
+        <div class="active-farm-pill" id="active-farm-pill" onclick="app.openFarmSwitcherModal()" title="Switch or edit active farm">
+          <span id="active-farm-label">📍 Farm 1 (Nashik, ONION) ▾</span>
+        </div>
+
+        <button class="audio-greet-btn" id="welcome-audio-btn" title="Speak Welcome Greeting" onclick="app.speakWelcomeGreeting()">
+          🔊
+        </button>
+      </div>
+
+      <!-- Language Selector Row -->
+      <div class="top-bar-row">
+        <div class="lang-segmented-bar" id="lang-segmented-bar">
+          <button class="lang-btn active" data-lang="en" onclick="app.setLanguage('en')">English</button>
+          <button class="lang-btn" data-lang="hi" onclick="app.setLanguage('hi')">हिंदी</button>
+          <!-- Dynamic 3rd language button updated according to active farm's state -->
+          <button class="lang-btn" id="dynamic-lang-btn" data-lang="mr" onclick="app.setLanguage('mr')">मराठी</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Navigation Bar (AI Advisor Home FIRST, Farm Profile Second) -->
+    <nav class="bottom-nav">
+      <button class="nav-tab-btn active" id="tab-nav-voice" onclick="app.switchTab('voice')">
+        <span class="nav-tab-icon">🎙️</span>
+        <span id="nav-voice-text">AI Advisor</span>
+      </button>
+      <button class="nav-tab-btn" id="tab-nav-hub" onclick="app.switchTab('hub')">
+        <span class="nav-tab-icon">👤</span>
+        <span id="nav-hub-text">Farm Profile</span>
+      </button>
+      <button class="nav-tab-btn" id="tab-nav-doctor" onclick="app.switchTab('doctor')">
+        <span class="nav-tab-icon">📸</span>
+        <span id="nav-doctor-text">Plant Doctor</span>
+      </button>
+      <button class="nav-tab-btn" id="tab-nav-farms" onclick="app.switchTab('farms')">
+        <span class="nav-tab-icon">🚜</span>
+        <span id="nav-farms-text">My Farms</span>
+      </button>
+    </nav>
+
+    <!-- TAB 2: FARM PROFILE (FARM HUB) -->
+    <section class="tab-content" id="tab-view-hub">
+      <div class="dashboard-hero-card">
+        <div class="farm-header-row">
+          <div class="farm-title-box">
+            <h2 id="hub-farm-name">Farm 1 (North Parcel)</h2>
+            <div class="farm-tagline" id="hub-farm-meta">Nashik, Maharashtra • 3.0 Acres • Medium Black Soil</div>
+            <div class="farm-tagline" id="hub-crop-meta" style="color: var(--accent-forest); font-weight: 700; margin-top: 3px;">Crop: Onion • Stage: Vegetative Growth</div>
+          </div>
+          <div class="farm-score-circle">
+            <div class="farm-score-val" id="hub-health-score">88</div>
+            <div class="farm-score-label" id="hub-health-badge-lbl">HEALTH</div>
+          </div>
+        </div>
+
+        <div class="scores-grid">
+          <div class="score-mini-card">
+            <div class="score-mini-label" id="hub-soil-score-lbl">Soil Health</div>
+            <div class="score-mini-val" id="hub-soil-score" style="color: var(--accent-forest);">82%</div>
+          </div>
+          <div class="score-mini-card">
+            <div class="score-mini-label" id="hub-crop-risk-lbl">Crop Risk</div>
+            <div class="score-mini-val" id="hub-risk-level" style="color: var(--accent-emerald);">Low Risk</div>
+          </div>
+          <div class="score-mini-card">
+            <div class="score-mini-label" id="hub-irrigation-lbl">Irrigation</div>
+            <div class="score-mini-val" id="hub-water-status" style="color: var(--accent-forest);">Drip</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Weather Radar Banner -->
+      <div class="weather-banner">
+        <div class="weather-left">
+          <div class="weather-icon-lg" id="hub-weather-icon">☀️</div>
+          <div>
+            <div class="weather-temp" id="hub-weather-temp">29°C</div>
+            <div class="weather-condition" id="hub-weather-cond">Clear Sky • Wind 9 km/h</div>
+          </div>
+        </div>
+        <div class="spray-badge spray-green" id="hub-spray-badge">
+          <span>✅ Safe to Spray</span>
+        </div>
+      </div>
+
+      <!-- Priority Action Alerts -->
+      <div class="section-title" id="hub-alerts-heading">⚠️ Priority Alerts</div>
+      <div class="alerts-container" id="hub-alerts-container">
+        <!-- Dynamically rendered -->
+      </div>
+
+      <!-- Personalized AI Recommendations -->
+      <div class="section-title" id="hub-recommendations-heading">💡 Today's Tailored Actions</div>
+      <div class="recommendations-card">
+        <div id="hub-recommendations-list">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Farmer & Field Soil Profile Card -->
+      <div class="soil-test-card" style="margin-top: 18px; margin-bottom: 14px;">
+        <div class="soil-test-header">
+          <span>🌾 <span id="hub-profile-heading">Farmer Soil & Field Diagnosis</span></span>
+          <button type="button" class="btn-primary" style="padding: 6px 14px; font-size: 13px; border-radius: 999px; min-height: 40px;" onclick="app.openNewFarmSurvey(false)">
+            ✏️ <span id="hub-retake-survey-btn">Edit Soil Survey</span>
+          </button>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px;">
+          <div class="score-mini-card" style="text-align: left; padding: 10px 12px;">
+            <div class="score-mini-label" id="hub-diy-ribbon-lbl">🏺 Soil Texture (Ribbon)</div>
+            <div style="font-size: 13.5px; font-weight: 700; color: var(--text-heading); margin-top: 3px;" id="hub-diy-soil-val">Medium Black Clay</div>
+          </div>
+          <div class="score-mini-card" style="text-align: left; padding: 10px 12px;">
+            <div class="score-mini-label" id="hub-diy-drainage-lbl">💧 Infiltration / Drainage</div>
+            <div style="font-size: 13.5px; font-weight: 700; color: var(--text-heading); margin-top: 3px;" id="hub-diy-drainage-val">Balanced (1-2 hrs)</div>
+          </div>
+          <div class="score-mini-card" style="text-align: left; padding: 10px 12px;">
+            <div class="score-mini-label" id="hub-diy-water-lbl">🚰 Water Source</div>
+            <div style="font-size: 13.5px; font-weight: 700; color: var(--text-heading); margin-top: 3px;" id="hub-diy-water-val">Open Well</div>
+          </div>
+          <div class="score-mini-card" style="text-align: left; padding: 10px 12px;">
+            <div class="score-mini-label" id="hub-diy-manure-lbl">🌿 Fertilizer Practice</div>
+            <div style="font-size: 13.5px; font-weight: 700; color: var(--text-heading); margin-top: 3px;" id="hub-diy-manure-val">Organic + Balanced NPK</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Soil Health & Nutrient Advice Box -->
+      <div class="soil-health-card" id="hub-soil-advice-box">
+        <strong id="hub-soil-advice-heading">🌱 Soil & Nutrient Guidance:</strong> <span id="hub-soil-advice-text">Soil pH is 6.8 (ideal balanced range). Continue applying decomposed organic compost.</span>
+      </div>
+    </section>
+
+    <!-- TAB 1: VOICE & CHAT ASSISTANT (PRIMARY HOME PAGE) -->
+    <section class="tab-content active" id="tab-view-voice">
+      <div class="hero-mic-section">
+        <div class="mic-outer-boundary" id="mic-boundary">
+          <div class="ripple-ring ring-1"></div>
+          <div class="ripple-ring ring-2"></div>
+          <div class="ripple-ring ring-3"></div>
+
+          <button class="mic-button idle" id="hero-mic-btn" aria-label="Microphone" onclick="app.handleMicToggle()">
+            <svg class="mic-icon-svg" viewBox="0 0 24 24">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="mic-status-label" id="mic-status-text">Speak, we are listening...</div>
+
+        <!-- Mic Blocked Warning -->
+        <div class="mic-blocked-banner" id="mic-blocked-alert">
+          Microphone not active. Please type your query or tap an action card below.
+        </div>
+
+        <!-- Live Speech Preview & Auto-Send Card -->
+        <div class="speech-preview-card" id="speech-preview-card">
+          <div class="speech-preview-header">
+            <span id="speech-heard-label">We heard:</span>
+            <button class="cancel-speech-btn" id="cancel-speech-btn" onclick="app.cancelSpeechInput()">Cancel</button>
+          </div>
+          <div class="speech-transcript-text" id="live-transcript-text">...</div>
+          <div class="auto-send-bar-wrap">
+            <div class="auto-send-bar-fill" id="auto-send-progress"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Clean Chat Input Bar -->
+      <form class="chat-bar-wrap" onsubmit="event.preventDefault(); app.handleChatSubmit();">
+        <input type="text" class="chat-input" id="chat-input-field" placeholder="Ask anything about your farm, crops, or weather..." autocomplete="off">
+        <button type="submit" class="chat-send-btn" id="chat-send-btn" aria-label="Send">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </form>
+
+      <!-- Dynamic Farm-Personalized Prompt Chips -->
+      <div class="chips-section" id="chips-carousel">
+        <span class="chips-label" id="chips-title">💡 Try asking:</span>
+        <div id="chips-container" style="display: inline-block;"></div>
+      </div>
+
+      <!-- Multi-Agent Thinking State Banner -->
+      <div class="thinking-banner" id="thinking-banner">
+        <div class="thinking-item">
+          <div class="spinner-dot"></div>
+          <span id="think-weather">Checking live weather and wind speed...</span>
+        </div>
+        <div class="thinking-item">
+          <div class="spinner-dot"></div>
+          <span id="think-soil">Analyzing soil and crop stage profile...</span>
+        </div>
+        <div class="thinking-item">
+          <div class="spinner-dot"></div>
+          <span id="think-market">Querying APMC mandi rates...</span>
+        </div>
+      </div>
+
+      <!-- 2x2 Core Feature Grid (Preserved) -->
+      <div class="feature-grid-section">
+        <div class="feature-card" onclick="app.triggerFlow('what_to_grow')">
+          <div class="feature-card-icon-badge badge-sage">🌱</div>
+          <div>
+            <div class="feature-card-title" id="feat-grow-title">What to Grow</div>
+            <div class="feature-card-sub" id="feat-grow-sub">Rabi Crop Planning</div>
+          </div>
+        </div>
+
+        <div class="feature-card" onclick="app.triggerFlow('weather_today')">
+          <div class="feature-card-icon-badge badge-amber">🌦️</div>
+          <div>
+            <div class="feature-card-title" id="feat-weather-title">Weather Today</div>
+            <div class="feature-card-sub" id="feat-weather-sub">Spray Advisory</div>
+          </div>
+        </div>
+
+        <div class="feature-card" onclick="app.triggerFlow('prices')">
+          <div class="feature-card-icon-badge badge-ochre">💰</div>
+          <div>
+            <div class="feature-card-title" id="feat-price-title">Mandi Rates</div>
+            <div class="feature-card-sub" id="feat-price-sub">Onion, Gram Prices</div>
+          </div>
+        </div>
+
+        <div class="feature-card" onclick="app.triggerFlow('how_to_grow')">
+          <div class="feature-card-icon-badge badge-clay">📖</div>
+          <div>
+            <div class="feature-card-title" id="feat-guide-title">Crop Handbook</div>
+            <div class="feature-card-sub" id="feat-guide-sub">POP & Best Practices</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: CROP DOCTOR (Plant Image Analysis) -->
+    <section class="tab-content" id="tab-view-doctor">
+      <div class="section-title" id="doctor-title">🌿 Crop Doctor (AI Plant Diagnosis)</div>
+      <p id="doctor-subtitle" style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 14px;">
+        Upload a photo of your leaf or crop. AI will analyze diseases, pests, and certified treatments.
+      </p>
+
+      <input type="file" id="crop-image-input" accept="image/*" style="display: none;" onchange="app.handleImageSelected(event)">
+
+      <div class="upload-zone-card" id="upload-zone-card" onclick="document.getElementById('crop-image-input').click()">
+        <div class="upload-icon-circle">📷</div>
+        <div class="upload-title" id="upload-title-text">Choose Photo or Open Camera</div>
+        <div class="upload-subtitle" id="upload-subtitle-text">Upload JPG, PNG or WebP image</div>
+      </div>
+
+      <div class="image-preview-box" id="image-preview-box">
+        <img id="preview-img-tag" src="" alt="Selected Crop">
+        <button class="remove-img-btn" id="remove-img-btn" onclick="app.clearSelectedImage(event)">✕ Remove</button>
+      </div>
+
+      <button class="analyze-action-btn" id="analyze-image-btn" onclick="app.runCropImageDiagnosis()" style="display: none;">
+        <span>🔍 Diagnose Crop Health</span>
+      </button>
+
+      <!-- Diagnosis Report Card -->
+      <div class="diagnosis-result-card" id="diagnosis-result-card">
+        <div class="diag-header-row">
+          <div>
+            <div style="font-size: 13px; color: var(--text-muted); font-weight: 700;" id="diag-crop-name">Rabi Onion</div>
+            <div class="diag-condition" id="diag-condition-text">Purple Blotch Fungus</div>
+          </div>
+          <div class="diag-risk-badge" id="diag-risk-badge" style="background: #FEF3C7; color: #92400E;">Moderate Risk</div>
+        </div>
+
+        <div style="font-size: 13px; font-weight: 800; color: var(--accent-forest); margin-top: 8px;" id="diag-symptoms-heading">Symptoms Observed:</div>
+        <ul class="diag-symptoms-list" id="diag-symptoms-list"></ul>
+
+        <div class="diag-actions-box">
+          <div class="diag-actions-title" id="diag-actions-heading">Recommended Treatment & POP:</div>
+          <div id="diag-actions-list" style="font-size: 13.5px; line-height: 1.5;"></div>
+        </div>
+
+        <div style="font-size: 12.5px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+          <span>Confidence: <strong id="diag-confidence-text" style="color: var(--accent-forest);">84%</strong></span>
+          <a href="tel:18001801551" style="color: var(--accent-forest); font-weight: 800; text-decoration: none;" id="diag-call-kvk-link">📞 Call KVK Expert</a>
+        </div>
+
+        <div class="honesty-footer" id="diag-disclaimer-text" style="margin-top: 10px;">
+          Indicative diagnostic advisory based on visible image symptoms. Consult nearest KVK for lab confirmation.
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: MY FARMS & HISTORY -->
+    <section class="tab-content" id="tab-view-farms">
+      <div class="section-title" id="farms-tab-title">🚜 My Registered Farms</div>
+
+      <button class="btn-add-farm" id="btn-open-add-farm" onclick="app.openNewFarmSurvey()">
+        <span>➕ Add New Farm</span>
+      </button>
+
+      <div class="farms-list-container" id="farms-list-container">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <div class="section-title" id="history-tab-title" style="margin-top: 20px;">📜 Previous Advisories & History</div>
+      <div id="farm-history-list">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- =============================================================
+         MODALS
+         ============================================================= -->
+
+    <!-- Initial Welcome Language Selection Modal -->
+    <div class="modal-overlay" id="first-launch-lang-modal">
+      <div class="modal-window">
+        <div class="modal-header-title" style="text-align: center;">🌐 Choose Your Language</div>
+        <div class="modal-header-sub" style="text-align: center;">Select your preferred language to personalize your farming companion:</div>
+
+        <div class="lang-choices-grid">
+          <div class="lang-choice-card selected" data-code="en" onclick="app.selectWelcomeLang(this)">
+            <div class="lang-choice-native">English</div>
+            <div class="lang-choice-eng">English (India)</div>
+          </div>
+          <div class="lang-choice-card" data-code="hi" onclick="app.selectWelcomeLang(this)">
+            <div class="lang-choice-native">हिंदी</div>
+            <div class="lang-choice-eng">Hindi</div>
+          </div>
+          <div class="lang-choice-card" data-code="mr" onclick="app.selectWelcomeLang(this)">
+            <div class="lang-choice-native">मराठी</div>
+            <div class="lang-choice-eng">Marathi</div>
+          </div>
+          <div class="lang-choice-card" data-code="gu" onclick="app.selectWelcomeLang(this)">
+            <div class="lang-choice-native">ગુજરાતી</div>
+            <div class="lang-choice-eng">Gujarati</div>
+          </div>
+          <div class="lang-choice-card" data-code="pa" onclick="app.selectWelcomeLang(this)">
+            <div class="lang-choice-native">ਪੰਜਾਬੀ</div>
+            <div class="lang-choice-eng">Punjabi</div>
+          </div>
+          <div class="lang-choice-card" data-code="kn" onclick="app.selectWelcomeLang(this)">
+            <div class="lang-choice-native">ಕನ್ನಡ</div>
+            <div class="lang-choice-eng">Kannada</div>
+          </div>
+          <div class="lang-choice-card" data-code="te" onclick="app.selectWelcomeLang(this)">
+            <div class="lang-choice-native">తెలుగు</div>
+            <div class="lang-choice-eng">Telugu</div>
+          </div>
+          <div class="lang-choice-card" data-code="ta" onclick="app.selectWelcomeLang(this)">
+            <div class="lang-choice-native">தமிழ்</div>
+            <div class="lang-choice-eng">Tamil</div>
+          </div>
+        </div>
+
+        <button class="btn-primary" onclick="app.confirmWelcomeLanguage()" style="width: 100%;">
+          Continue in Selected Language ➔
+        </button>
+      </div>
+    </div>
+
+    <!-- Location Chooser Modal -->
+    <div class="modal-overlay" id="location-modal" onclick="app.handleModalBackdropClick(event, 'location-modal')">
+      <div class="modal-window">
+        <button class="modal-close-btn" onclick="app.closeModal('location-modal')">✕</button>
+        <div class="modal-header-title" id="loc-modal-title">📍 Select Your Farm Location</div>
+        <div class="modal-header-sub" id="loc-modal-sub">Language and weather forecast will automatically calibrate according to your state.</div>
+
+        <div class="form-group">
+          <label class="form-label" id="loc-state-lbl">State:</label>
+          <select class="form-select" id="loc-state-select" onchange="app.handleStateChange(this.value)">
+            <option value="Maharashtra" selected>Maharashtra (महाराष्ट्र)</option>
+            <option value="Gujarat">Gujarat (ગુજરાત)</option>
+            <option value="Punjab">Punjab (ਪੰਜਾਬ)</option>
+            <option value="Karnataka">Karnataka (ಕರ್ನಾಟಕ)</option>
+            <option value="Andhra Pradesh">Andhra Pradesh (ఆంధ్రప్రదేశ్)</option>
+            <option value="Tamil Nadu">Tamil Nadu (தமிழ்நாடு)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" id="loc-district-lbl">District:</label>
+          <div class="choice-cards-grid" id="loc-districts-grid">
+            <!-- Dynamically populated from /api/regions -->
+          </div>
+        </div>
+
+        <button class="btn-primary" id="loc-save-btn" onclick="app.applyLocationSelection()" style="width: 100%; margin-top: 10px;">
+          Confirm & Save Location
+        </button>
+      </div>
+    </div>
+
+    <!-- Farm Switcher Modal -->
+    <div class="modal-overlay" id="farm-switcher-modal" onclick="app.handleModalBackdropClick(event, 'farm-switcher-modal')">
+      <div class="modal-window">
+        <button class="modal-close-btn" onclick="app.closeModal('farm-switcher-modal')">✕</button>
+        <div class="modal-header-title" id="switcher-title">🌾 Select Active Farm</div>
+        <div class="modal-header-sub" id="switcher-sub">Tap to switch active farm or create a new parcel:</div>
+
+        <div class="farms-list-container" id="switcher-farms-list"></div>
+
+        <div class="wizard-nav-row">
+          <button class="btn-secondary" id="switcher-change-loc-btn" onclick="app.closeModal('farm-switcher-modal'); app.openLocationModal();">
+            📍 Change Location
+          </button>
+          <button class="btn-primary" id="switcher-add-btn" onclick="app.closeModal('farm-switcher-modal'); app.openNewFarmSurvey();">
+            ➕ Add New Farm
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comprehensive Farmer-Friendly Farm & DIY Soil Survey Wizard Modal -->
+    <div class="modal-overlay" id="survey-modal">
+      <div class="modal-window">
+        <button class="modal-close-btn" id="survey-close-btn" onclick="app.closeModal('survey-modal')">✕</button>
+        
+        <div class="modal-header-title" id="survey-wizard-title">🌾 Farmer Land & Soil Survey</div>
+        <div class="modal-header-sub" id="survey-step-indicator">Step 1 of 3: Location & Land Parcel</div>
+
+        <form id="farm-survey-form" onsubmit="event.preventDefault();">
+          <!-- Step 1: Location & Land -->
+          <div class="survey-step" id="survey-step-1">
+            <div class="form-group">
+              <label class="form-label" id="survey-farm-name-lbl">Farmer / Farm Name:</label>
+              <input type="text" class="form-input" id="survey-farm-name" placeholder="Sunita Patil's Farm (Niphad)" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" id="survey-state-lbl">State (राज्य):</label>
+              <select class="form-select" id="survey-state" onchange="app.updateSurveyDistricts(this.value)">
+                <option value="Maharashtra" selected>Maharashtra (महाराष्ट्र)</option>
+                <option value="Gujarat">Gujarat (ગુજરાત)</option>
+                <option value="Punjab">Punjab (ਪੰਜਾਬ)</option>
+                <option value="Karnataka">Karnataka (ಕರ್ನಾಟಕ)</option>
+                <option value="Andhra Pradesh">Andhra Pradesh (ఆంధ్రప్రదేశ్)</option>
+                <option value="Tamil Nadu">Tamil Nadu (தமிழ்நாடு)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" id="survey-district-lbl">District (जिल्हा / जिला):</label>
+              <select class="form-select" id="survey-district">
+                <option value="nashik" selected>Nashik (नाशिक)</option>
+                <option value="pune">Pune (पुणे)</option>
+                <option value="solapur">Solapur (सोलापूर)</option>
+                <option value="ahmednagar">Ahmednagar (अहमदनगर)</option>
+                <option value="nagpur">Nagpur (नागपूर)</option>
+                <option value="kolhapur">Kolhapur (कोल्हापूर)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" id="survey-locality-lbl">Village / Locality (गाव / गांव / गट नं.):</label>
+              <input type="text" class="form-input" id="survey-locality" placeholder="e.g. Niphad, Gat No. 42">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" id="survey-acres-lbl">Total Land Parcel (जमीन एकर / Acres):</label>
+              <input type="number" step="0.5" min="0.5" max="200" class="form-input" id="survey-acres" value="3.0" required>
+            </div>
+
+            <div class="wizard-nav-row">
+              <button type="button" class="btn-primary" id="survey-next-1-btn" onclick="app.surveyNextStep(2)" style="width: 100%;">
+                Next: Simple Soil & Water Tests ➔
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 2: Comprehensive DIY Soil & Water Field Tests -->
+          <div class="survey-step" id="survey-step-2" style="display: none;">
+            
+            <!-- DIY Test 1: Ribbon & Feel Test -->
+            <div class="soil-test-card">
+              <div class="soil-test-header">
+                <span>🏺 Test 1: Soil Feel & Ribbon Test (मिट्टी का रिबन परीक्षण)</span>
+                <span class="soil-test-badge">DIY Field Test</span>
+              </div>
+              <div class="helper-note" style="margin-top: 0; margin-bottom: 10px;">
+                💡 <em>Take a handful of moist soil and roll it between your palms into a ribbon/pencil.</em>
+              </div>
+              <div class="choice-cards-grid" id="survey-soil-grid">
+                <div class="choice-card-item selected" data-value="medium_black" onclick="app.selectSurveyChoice('survey-soil-grid', this)">
+                  <div class="choice-card-icon">🟤</div>
+                  <div class="choice-card-label">Black Cotton Soil (मध्यम काळी)</div>
+                  <div class="choice-card-sub">Forms smooth flexible ribbon, high water hold</div>
+                </div>
+                <div class="choice-card-item" data-value="alluvial_clay" onclick="app.selectSurveyChoice('survey-soil-grid', this)">
+                  <div class="choice-card-icon">🌾</div>
+                  <div class="choice-card-label">Fertile Loam (गाळाची दोमट)</div>
+                  <div class="choice-card-sub">Rolls then crumbles, most fertile & balanced</div>
+                </div>
+                <div class="choice-card-item" data-value="sandy_loam" onclick="app.selectSurveyChoice('survey-soil-grid', this)">
+                  <div class="choice-card-icon">🏖️</div>
+                  <div class="choice-card-label">Sandy / Light (हलकी वाळूमिश्रित)</div>
+                  <div class="choice-card-sub">Gritty feel, won't form ribbon, fast draining</div>
+                </div>
+                <div class="choice-card-item" data-value="red" onclick="app.selectSurveyChoice('survey-soil-grid', this)">
+                  <div class="choice-card-icon">🔴</div>
+                  <div class="choice-card-label">Red / Gravelly (लाल मुरुमाची)</div>
+                  <div class="choice-card-sub">Pebbly, good aeration, needs frequent manure</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- DIY Test 2: Water Drainage & Percolation Test -->
+            <div class="soil-test-card">
+              <div class="soil-test-header">
+                <span>💧 Test 2: Water Drainage Test (पाण्याचा निचरा व सोखने की गति)</span>
+                <span class="soil-test-badge">Hydrology</span>
+              </div>
+              <div class="choice-cards-grid" id="survey-drainage-grid">
+                <div class="choice-card-item selected" data-value="balanced" onclick="app.selectSurveyChoice('survey-drainage-grid', this)">
+                  <div class="choice-card-icon">⏱️</div>
+                  <div class="choice-card-label">Balanced Infiltration (योग्य निचरा)</div>
+                  <div class="choice-card-sub">Water soaks in 1-2 hours, ideal root aeration</div>
+                </div>
+                <div class="choice-card-item" data-value="slow_pooling" onclick="app.selectSurveyChoice('survey-drainage-grid', this)">
+                  <div class="choice-card-icon">🌊</div>
+                  <div class="choice-card-label">Slow / Waterlogging (पाणी साचते)</div>
+                  <div class="choice-card-sub">Water stands for days, needs raised beds/drains</div>
+                </div>
+                <div class="choice-card-item" data-value="fast_draining" onclick="app.selectSurveyChoice('survey-drainage-grid', this)">
+                  <div class="choice-card-icon">⚡</div>
+                  <div class="choice-card-label">Very Fast (अतिजलद निचरा)</div>
+                  <div class="choice-card-sub">Dries up quickly, needs mulch & frequent drip</div>
+                </div>
+                <div class="choice-card-item" data-value="unknown" onclick="app.selectSurveyChoice('survey-drainage-grid', this)">
+                  <div class="choice-card-icon">❓</div>
+                  <div class="choice-card-label">Not Observed (माहित नाही)</div>
+                  <div class="choice-card-sub">KisanMitra will calculate from district data</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- DIY Test 3: Water Source & Quality -->
+            <div class="soil-test-card">
+              <div class="soil-test-header">
+                <span>🚰 Test 3: Irrigation Source & Hardness (पाण्याचा स्रोत)</span>
+                <span class="soil-test-badge">Source</span>
+              </div>
+              <div class="choice-cards-grid" id="survey-water-grid">
+                <div class="choice-card-item selected" data-value="well" onclick="app.selectSurveyChoice('survey-water-grid', this)">
+                  <div class="choice-card-icon">💧</div>
+                  <div class="choice-card-label">Open Well / Farm Pond (विहीर/तळे)</div>
+                  <div class="choice-card-sub">Fresh surface water</div>
+                </div>
+                <div class="choice-card-item" data-value="borewell" onclick="app.selectSurveyChoice('survey-water-grid', this)">
+                  <div class="choice-card-icon">🚰</div>
+                  <div class="choice-card-label">Borewell (बोअरवेल)</div>
+                  <div class="choice-card-sub">Deep groundwater (may be hard)</div>
+                </div>
+                <div class="choice-card-item" data-value="canal" onclick="app.selectSurveyChoice('survey-water-grid', this)">
+                  <div class="choice-card-icon">🌊</div>
+                  <div class="choice-card-label">Canal / River (कालवा/नदी)</div>
+                  <div class="choice-card-sub">Sweet flowing water</div>
+                </div>
+                <div class="choice-card-item" data-value="rainfed" onclick="app.selectSurveyChoice('survey-water-grid', this)">
+                  <div class="choice-card-icon">🌧️</div>
+                  <div class="choice-card-label">Rainfed Only (केवळ पावसाचे पाणी)</div>
+                  <div class="choice-card-sub">Dryland agriculture</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 10px;">
+              <label class="form-label" id="survey-irrigation-lbl">Irrigation Method (सिंचन पद्धत):</label>
+              <select class="form-select" id="survey-irrigation">
+                <option value="drip" selected id="opt-irr-drip">Drip Irrigation (ठिबक सिंचन - Recommended)</option>
+                <option value="sprinkler" id="opt-irr-sprinkler">Sprinkler (तुषार सिंचन)</option>
+                <option value="flood" id="opt-irr-flood">Flood / Furrow (पाट पाणी)</option>
+                <option value="rainfed" id="opt-irr-rainfed">Rainfed / Dryland (पावसावर आधारित)</option>
+              </select>
+            </div>
+
+            <div class="wizard-nav-row">
+              <button type="button" class="btn-secondary" id="survey-back-2-btn" onclick="app.surveyNextStep(1)">⬅️ Back</button>
+              <button type="button" class="btn-primary" id="survey-next-2-btn" onclick="app.surveyNextStep(3)">Next: Crop & History ➔</button>
+            </div>
+          </div>
+
+          <!-- Step 3: Current Crop & Farm History -->
+          <div class="survey-step" id="survey-step-3" style="display: none;">
+            
+            <div class="soil-test-card">
+              <div class="soil-test-header">
+                <span>🌱 Planned / Current Rabi Crop (नियोजित पीक):</span>
+              </div>
+              <div class="choice-cards-grid" id="survey-crop-grid">
+                <div class="choice-card-item selected" data-value="onion" onclick="app.selectSurveyChoice('survey-crop-grid', this)">
+                  <div class="choice-card-icon">🧅</div>
+                  <div class="choice-card-label">Rabi Onion (कांदा / प्याज)</div>
+                </div>
+                <div class="choice-card-item" data-value="wheat" onclick="app.selectSurveyChoice('survey-crop-grid', this)">
+                  <div class="choice-card-icon">🌾</div>
+                  <div class="choice-card-label">Wheat (गहू / गेहूं)</div>
+                </div>
+                <div class="choice-card-item" data-value="gram" onclick="app.selectSurveyChoice('survey-crop-grid', this)">
+                  <div class="choice-card-icon">🌱</div>
+                  <div class="choice-card-label">Gram (हरभरा / चना)</div>
+                </div>
+                <div class="choice-card-item" data-value="tomato" onclick="app.selectSurveyChoice('survey-crop-grid', this)">
+                  <div class="choice-card-icon">🍅</div>
+                  <div class="choice-card-label">Tomato (टोमॅटो / टमाटर)</div>
+                </div>
+                <div class="choice-card-item" data-value="cotton" onclick="app.selectSurveyChoice('survey-crop-grid', this)">
+                  <div class="choice-card-icon">☁️</div>
+                  <div class="choice-card-label">Cotton (कापूस / कपास)</div>
+                </div>
+                <div class="choice-card-item" data-value="fallow" onclick="app.selectSurveyChoice('survey-crop-grid', this)">
+                  <div class="choice-card-icon">🚜</div>
+                  <div class="choice-card-label">Field Prep (मशागत / तैयारी)</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" id="survey-stage-lbl">Crop Growth Stage (पिकाची सध्याची अवस्था):</label>
+              <div class="choice-cards-grid" id="survey-stage-grid">
+                <div class="choice-card-item" data-value="sowing" onclick="app.selectSurveyChoice('survey-stage-grid', this)">
+                  <div class="choice-card-icon">🌱</div>
+                  <div class="choice-card-label">Sowing / Nursery (रोपवाटिका / बुवाई)</div>
+                </div>
+                <div class="choice-card-item selected" data-value="vegetative" onclick="app.selectSurveyChoice('survey-stage-grid', this)">
+                  <div class="choice-card-icon">🌿</div>
+                  <div class="choice-card-label">Vegetative (शाकीय वाढ / वृद्धि)</div>
+                </div>
+                <div class="choice-card-item" data-value="flowering" onclick="app.selectSurveyChoice('survey-stage-grid', this)">
+                  <div class="choice-card-icon">🌸</div>
+                  <div class="choice-card-label">Flowering (फुलोरा / फूल आना)</div>
+                </div>
+                <div class="choice-card-item" data-value="fruiting" onclick="app.selectSurveyChoice('survey-stage-grid', this)">
+                  <div class="choice-card-icon">🍎</div>
+                  <div class="choice-card-label">Bulb / Fruit Sizing (पोषण / फलन)</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" id="survey-fertilizer-lbl">Fertilizer & Organic History (खतांचा इतिहास):</label>
+              <select class="form-select" id="survey-fertilizer">
+                <option value="organic_mixed" selected>Desi Cow Dung / Compost + Balanced NPK (सेंद्रिय शेणखत + रासायनिक)</option>
+                <option value="pure_organic">100% Organic Farming (संपूर्ण सेंद्रिय / जीवामृत)</option>
+                <option value="chemical_heavy">Mostly Chemical Fertilizers (DAP / Urea / 10:26:26)</option>
+              </select>
+            </div>
+
+            <div class="wizard-nav-row">
+              <button type="button" class="btn-secondary" id="survey-back-3-btn" onclick="app.surveyNextStep(2)">⬅️ Back</button>
+              <button type="button" class="btn-primary" id="survey-submit-btn" onclick="app.submitFarmSurvey()">
+                ✅ Complete Survey & Launch Advisor ➔
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Farmer Welcome Gateway & Supabase Auth Modal with 1-Click Demo -->
+    <div class="modal-overlay" id="auth-modal" onclick="app.handleModalBackdropClick(event, 'auth-modal')">
+      <div class="modal-window">
+        <button class="modal-close-btn" onclick="app.closeModal('auth-modal')">✕</button>
+        
+        <div style="text-align: center; margin-bottom: 14px;">
+          <div style="font-size: 38px; margin-bottom: 4px;">🌾</div>
+          <div class="modal-header-title" id="auth-modal-title">Welcome to KisanMitra</div>
+          <div class="modal-header-sub" id="auth-modal-sub" style="margin-bottom: 8px;">Your trusted AI farming companion with localized regional intelligence.</div>
+        </div>
+
+        <!-- Auth Tabs: Sign In / Create Account -->
+        <div class="lang-segmented-bar" style="margin-bottom: 16px;">
+          <button type="button" class="lang-btn active" id="auth-tab-signin" onclick="app.setAuthTab('signin')" style="flex: 1;">Sign In (लॉगिन)</button>
+          <button type="button" class="lang-btn" id="auth-tab-signup" onclick="app.setAuthTab('signup')" style="flex: 1;">New Account (नवीन खाते)</button>
+        </div>
+
+        <form onsubmit="event.preventDefault(); app.handleAuthSubmit();">
+          <div class="form-group" id="auth-name-group" style="display: none;">
+            <label class="form-label" id="auth-name-lbl">Farmer Full Name (नाव):</label>
+            <input type="text" class="form-input" id="auth-full-name" placeholder="सुनीता पाटील / Rajesh Kumar">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" id="auth-email-lbl">Email Address (ईमेल):</label>
+            <input type="email" class="form-input" id="auth-email" placeholder="farmer@kisanmitra.in" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" id="auth-password-lbl">Password (पासवर्ड):</label>
+            <input type="password" class="form-input" id="auth-password" placeholder="••••••••" required>
+          </div>
+
+          <div class="wizard-nav-row" style="margin-top: 14px;">
+            <button type="submit" class="btn-primary" id="btn-auth-action" style="width: 100%;">
+              Continue with Supabase Auth ➔
+            </button>
+          </div>
+        </form>
+
+        <div style="margin: 16px 0 10px 0; display: flex; align-items: center; text-align: center;">
+          <hr style="flex: 1; border: none; border-top: 1px solid var(--border-jute);">
+          <span style="padding: 0 12px; font-size: 12px; color: var(--text-muted); font-weight: 700;">OR EXPLORE IMMEDIATELY</span>
+          <hr style="flex: 1; border: none; border-top: 1px solid var(--border-jute);">
+        </div>
+
+        <!-- 1-Click Demo Bypass Button -->
+        <div>
+          <button type="button" class="btn-demo-bypass" id="btn-auth-demo" onclick="app.quickDemoLogin()">
+            🌾 1-Click Demo Farmer (Bypass / Skip Login)
+          </button>
+          <div style="text-align: center; font-size: 11.5px; color: var(--text-muted); margin-top: 6px;">
+            Instant access to Sunita Patil's calibrated Nashik farm (3.0 acres, Rabi onion).
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Advisory Bottom-Sheet Overlay (Verified AnswerCard) -->
+    <div class="result-sheet-overlay" id="result-overlay" onclick="app.handleOverlayClick(event)">
+      <div class="result-bottom-sheet" id="result-bottom-sheet">
+        <div class="sheet-handle"></div>
+
+        <div class="result-title" id="card-title">Agricultural Advisory Card</div>
+
+        <!-- Audio Player Bar -->
+        <div class="audio-player-bar">
+          <button class="listen-again-btn" id="listen-again-btn" onclick="app.replayAudio()">
+            <span>🔊 Listen Again</span>
+          </button>
+          <div class="audio-wave-anim" id="audio-wave-anim">
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+          </div>
+        </div>
+
+        <!-- Metrics Row -->
+        <div class="metrics-row" id="card-metrics-row"></div>
+
+        <!-- Summary Lines -->
+        <div class="summary-box" id="card-summary-lines"></div>
+
+        <!-- Actionable Steps -->
+        <div class="steps-section" id="card-steps-section">
+          <div class="steps-title" id="steps-header">Key Actionable Steps:</div>
+          <div id="card-steps-list"></div>
+        </div>
+
+        <!-- Honesty Tagline -->
+        <div class="honesty-footer" id="card-honesty-tag">
+          Source: Agricultural Extension Package of Practices | Indicative guidance only.
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions-row">
+          <a href="tel:18001801551" class="btn-action-secondary" id="btn-call-kvk">
+            <span>📞 Call KVK</span>
+          </a>
+          <button class="btn-action-primary" onclick="app.closeResultAndAskAgain()" id="btn-ask-another">
+            <span>🎙️ Ask Another</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Core Application Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="speech.js"></script>
+  <script src="supabase_client.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
