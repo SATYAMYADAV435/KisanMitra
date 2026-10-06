@@ -3,78 +3,78 @@
   "latitude": 18.52,
   "longitude": 73.85,
   "current": {
-    "temperature_c": 30.6,
-    "apparent_temperature_c": 34.2,
+    "temperature_c": 32.4,
+    "apparent_temperature_c": 34.1,
     "soil_temperature_0cm": 24.1,
-    "condition": "स्वच्छ आकाश",
-    "condition_en": "Clear sky",
-    "condition_hi": "साफ आसमान",
-    "wind_speed_kmh": 4.2,
-    "humidity_pct": 45,
-    "precipitation_mm": 0.7
+    "condition": "मुख्यतः निरभ्र",
+    "condition_en": "Mainly clear",
+    "condition_hi": "मुख्य रूप से साफ",
+    "wind_speed_kmh": 9.4,
+    "humidity_pct": 33,
+    "precipitation_mm": 0.0
   },
   "forecast_7d": [
     {
       "day": "Day 1",
       "date": "2026-10-06",
-      "temp_max": 32.8,
-      "temp_min": 23.0,
-      "rain_mm": 0.7,
-      "wind_max_kmh": 10.3,
-      "condition": "Light drizzle"
+      "temp_max": 33.0,
+      "temp_min": 22.4,
+      "rain_mm": 0.0,
+      "wind_max_kmh": 12.8,
+      "condition": "Mainly clear"
     },
     {
       "day": "Day 2",
       "date": "2026-10-07",
-      "temp_max": 33.6,
-      "temp_min": 21.7,
+      "temp_max": 33.7,
+      "temp_min": 21.9,
       "rain_mm": 0.0,
-      "wind_max_kmh": 13.5,
-      "condition": "Overcast"
+      "wind_max_kmh": 16.7,
+      "condition": "Mainly clear"
     },
     {
       "day": "Day 3",
       "date": "2026-10-08",
-      "temp_max": 33.2,
-      "temp_min": 22.8,
-      "rain_mm": 0.6,
-      "wind_max_kmh": 10.6,
+      "temp_max": 33.3,
+      "temp_min": 23.0,
+      "rain_mm": 0.1,
+      "wind_max_kmh": 10.3,
       "condition": "Light drizzle"
     },
     {
       "day": "Day 4",
       "date": "2026-10-09",
-      "temp_max": 34.7,
-      "temp_min": 22.6,
+      "temp_max": 35.0,
+      "temp_min": 22.9,
       "rain_mm": 0.0,
-      "wind_max_kmh": 8.6,
+      "wind_max_kmh": 10.8,
       "condition": "Mainly clear"
     },
     {
       "day": "Day 5",
       "date": "2026-10-10",
-      "temp_max": 34.9,
-      "temp_min": 23.0,
+      "temp_max": 34.7,
+      "temp_min": 23.3,
       "rain_mm": 0.0,
-      "wind_max_kmh": 12.1,
+      "wind_max_kmh": 12.7,
       "condition": "Mainly clear"
     },
     {
       "day": "Day 6",
       "date": "2026-10-11",
-      "temp_max": 34.1,
-      "temp_min": 23.7,
+      "temp_max": 34.5,
+      "temp_min": 23.6,
       "rain_mm": 0.0,
-      "wind_max_kmh": 14.1,
-      "condition": "Clear sky"
+      "wind_max_kmh": 15.9,
+      "condition": "Mainly clear"
     },
     {
       "day": "Day 7",
       "date": "2026-10-12",
-      "temp_max": 33.5,
-      "temp_min": 23.1,
+      "temp_max": 33.4,
+      "temp_min": 22.9,
       "rain_mm": 0.0,
-      "wind_max_kmh": 15.7,
+      "wind_max_kmh": 17.7,
       "condition": "Clear sky"
     }
   ],
@@ -82,7 +82,7 @@
     "spray_flag": "green",
     "spray_reason": "हवामान कोरडे व वारे शांत (<12 km/h) असल्याने आज फवारणीसाठी अगदी उत्तम वेळ आहे (Ideal calm dry weather for spraying).",
     "soil_advice": "मातीचे पृष्ठभाग तापमान 24.1°C आहे — बियाणे पेरणी, अंकुरण व मुळांच्या वाढीसाठी अगदी अनुकूल आहे (Optimal soil temp for sowing).",
-    "irrigation_advice": "जमिनीतील ओलावा तपासून नियमित अंतराने हलके पाणी द्यावे (Provide standard light irrigation).",
+    "irrigation_advice": "कमी आर्द्रता व उष्णतेमुळे हलके सिंचन करावे, तुषार किंवा ठिबक वापरावे (Low humidity; provide drip irrigation).",
     "source": "Open-Meteo API (Live)"
   }
 }
