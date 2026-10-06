@@ -491,7 +491,8 @@ class KisanApp {
 
       if (res.ok) {
         const intel = await res.json();
-        this.renderFarmIntelligence(intel);
+        const localized = this.localizeFarmIntelligence(intel, this.currentLanguage);
+        this.renderFarmIntelligence(localized || intel);
       }
     } catch (e) {
       console.warn('Farm intelligence fetch failed:', e);
@@ -797,6 +798,7 @@ class KisanApp {
       card.onclick = () => {
         this.dataManager.setActiveFarm(f.id);
         this.updateActiveFarmUI();
+        this.renderFarmIntelligenceForLanguage(this.currentLanguage);
         this.refreshFarmIntelligence();
         this.closeModal('farm-switcher-modal');
       };
@@ -874,6 +876,7 @@ class KisanApp {
   selectActiveFarm(farmId) {
     this.dataManager.setActiveFarm(farmId);
     this.updateActiveFarmUI();
+    this.renderFarmIntelligenceForLanguage(this.currentLanguage);
     this.refreshFarmIntelligence();
     this.renderFarmsListTab();
   }
@@ -1242,10 +1245,11 @@ class KisanApp {
 
       if (res.ok) {
         const diag = await res.json();
-        this.renderDiagnosisCard(diag);
+        this.currentDiagnosis = diag;
+        this.retranslateDiagnosisCard(this.currentLanguage);
         // Save to history
         this.dataManager.saveAnalysis({
-          title: `Crop Diagnosis: ${diag.condition || 'Health Check'}`,
+          title: `Crop Diagnosis: ${this.currentDiagnosis?.condition || diag.condition || 'Health Check'}`,
           summary: `Risk: ${diag.risk_level} • Confidence: ${diag.confidence_pct}%`
         });
       }
@@ -1304,11 +1308,11 @@ class KisanApp {
   }
 
   retranslateDiagnosisCard(lang) {
-    const card = document.getElementById('diagnosis-result-card');
-    if (!card || card.style.display === 'none') return;
     if (!this.currentDiagnosis) return;
+    const card = document.getElementById('diagnosis-result-card');
+    if (!card) return;
 
-    if (this.diagnosisCache && this.diagnosisCache[lang]) {
+    if (this.diagnosisCache && this.diagnosisCache[lang] && this.diagnosisCache[lang]._localizedLang === lang) {
       this.renderDiagnosisCard(this.diagnosisCache[lang]);
       return;
     }
@@ -1316,6 +1320,8 @@ class KisanApp {
     const diag = this.currentDiagnosis;
     const condStr = (diag.condition || '').toLowerCase();
     const cropStr = (diag.crop_name || '').toLowerCase();
+    const farm = this.dataManager.getActiveFarm() || {};
+    const farmCrop = (farm.current_crop || '').toLowerCase();
     const t = (p, def) => this._t(p, def);
 
     let localizedCrop = 'Crop';
@@ -1323,10 +1329,10 @@ class KisanApp {
     let localizedSymptoms = diag.symptoms || [];
     let localizedActions = diag.recommended_actions || [];
 
-    const isTomato = cropStr.includes('tomato') || cropStr.includes('टोमॅटो') || cropStr.includes('टमाटर');
-    const isOnion = cropStr.includes('onion') || cropStr.includes('कांदा') || cropStr.includes('प्या');
-    const isWheat = cropStr.includes('wheat') || cropStr.includes('गहू') || cropStr.includes('गेहूं');
-    const isGram = cropStr.includes('gram') || cropStr.includes('हरभरा') || cropStr.includes('चना');
+    const isTomato = cropStr.includes('tomato') || farmCrop.includes('tomato') || cropStr.includes('टोमॅटो') || cropStr.includes('टमाटर');
+    const isOnion = cropStr.includes('onion') || farmCrop.includes('onion') || cropStr.includes('कांदा') || cropStr.includes('प्या');
+    const isWheat = cropStr.includes('wheat') || farmCrop.includes('wheat') || cropStr.includes('गहू') || cropStr.includes('गेहूं');
+    const isGram = cropStr.includes('gram') || farmCrop.includes('gram') || cropStr.includes('chana') || cropStr.includes('हरभरा') || cropStr.includes('चना');
 
     if (isTomato) {
       if (lang === 'en') {
@@ -1357,7 +1363,7 @@ class KisanApp {
         ];
       } else {
         localizedCrop = 'टोमॅटो';
-        localizedCond = 'अल्टरनेरिया करपा रोग';
+        localizedCond = 'अल्टरनेरिया करपा रोग (Early Blight)';
         localizedSymptoms = [
           'खालच्या जुन्या पानांवर काळे-तपकिरी गोलाकार चक्राकार वलये (Target board spots).',
           'पाने पिवळी पडून गळण्यास सुरुवात होणे.',
@@ -1535,10 +1541,54 @@ class KisanApp {
           '३. शेतात पक्षी थांबण्यासाठी इंग्रजी T आकाराचे पक्षी थांबे लावा.'
         ];
       }
+    } else {
+      const cropKey = farm.current_crop || 'crop';
+      const cropLabel = t(`survey.crop_${cropKey}`, diag.crop_name || 'Crop');
+      if (lang === 'en') {
+        localizedCrop = cropLabel;
+        localizedCond = diag.condition || 'Foliar Inspection & Plant Health Check';
+        localizedSymptoms = [
+          'Visible discoloration and spots on leaf margins.',
+          'Possible nutritional deficiency or fungal spore activity.',
+          'Monitor soil moisture and canopy aeration.'
+        ];
+        localizedActions = [
+          '1. Prune affected leaves and dispose away from the active farm plot.',
+          '2. Apply certified bio-fungicide or neem oil (Azadirachtin) @ 2ml/L.',
+          '3. Consult nearest KVK or agricultural officer with physical leaf sample.'
+        ];
+      } else if (lang === 'hi') {
+        localizedCrop = cropLabel;
+        localizedCond = 'पत्ती स्वास्थ्य निरीक्षण एवं सामान्य रोग जांच';
+        localizedSymptoms = [
+          'पत्तियों के किनारों पर धब्बे व रंग में हल्का बदलाव।',
+          'पोषक तत्वों की कमी अथवा फफूंद जनित संक्रमण के शुरुआती लक्षण।',
+          'खेत में जल निकासी व धूप-हवा का उचित प्रबंध रखें।'
+        ];
+        localizedActions = [
+          '1. प्रभावित पत्तियों को तोड़कर खेत से दूर नष्ट करें।',
+          '2. नीम का तेल (Azadirachtin) 2 मिली प्रति लीटर पानी में मिलाकर छिड़कें।',
+          '3. कृषि विज्ञान केंद्र (KVK) के विशेषज्ञ से सलाह लें।'
+        ];
+      } else {
+        localizedCrop = cropLabel;
+        localizedCond = 'पानांचे आरोग्य निरीक्षण व कीड-रोग तपासणी';
+        localizedSymptoms = [
+          'पानांच्या कडांवर डाग व रंग बदलल्याचे दिसून येत आहे.',
+          'अन्नद्रव्यांची कमतरता किंवा बुरशीजन्य प्रादुर्भावाचे लक्षण.',
+          'शेतात पाण्याचा निचरा योग्य ठेवा आणि हवा खेळती राहू द्या.'
+        ];
+        localizedActions = [
+          '१. बाधित पाने गोळा करून शेताबाहेर नष्ट करा.',
+          '२. निंबोळी अर्क (Azadirachtin) २ मिली प्रति लिटर पाण्यात मिसळून फवारा.',
+          '३. जवळच्या कृषी विज्ञान केंद्रातील (KVK) तज्ज्ञांचा सल्ला घ्या.'
+        ];
+      }
     }
 
     const updated = {
       ...diag,
+      _localizedLang: lang,
       crop_name: localizedCrop,
       condition: localizedCond,
       symptoms: localizedSymptoms,
@@ -1546,6 +1596,7 @@ class KisanApp {
       disclaimer: t('doctor.disclaimer', 'Indicative diagnostic advisory based on visible image symptoms.')
     };
     this.currentDiagnosis = updated;
+    this.diagnosisCache = this.diagnosisCache || {};
     this.diagnosisCache[lang] = updated;
     this.renderDiagnosisCard(updated);
   }
