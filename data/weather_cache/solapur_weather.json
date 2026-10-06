@@ -3,14 +3,14 @@
   "latitude": 17.67,
   "longitude": 75.9,
   "current": {
-    "temperature_c": 34.4,
-    "apparent_temperature_c": 33.8,
+    "temperature_c": 34.2,
+    "apparent_temperature_c": 33.3,
     "soil_temperature_0cm": 26.7,
     "condition": "Clear sky",
     "condition_en": "Clear sky",
     "condition_hi": "साफ आसमान",
-    "wind_speed_kmh": 12.3,
-    "humidity_pct": 23,
+    "wind_speed_kmh": 12.2,
+    "humidity_pct": 24,
     "precipitation_mm": 0.0,
     "weather_code": 0
   },
@@ -81,7 +81,7 @@
   ],
   "advisory": {
     "spray_flag": "amber",
-    "spray_reason": "Moderate winds (12.3 km/h). Spray with caution during early morning or late evening.",
+    "spray_reason": "Moderate winds (12.2 km/h). Spray with caution during early morning or late evening.",
     "soil_advice": "Surface soil temperature is 26.7°C — optimal for seed germination and healthy root growth.",
     "irrigation_advice": "Low humidity and dry air; provide regular light drip irrigation.",
     "source": "Open-Meteo API (Live)"

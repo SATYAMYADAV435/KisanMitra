@@ -3,15 +3,16 @@
   "latitude": 20.0,
   "longitude": 73.78,
   "current": {
-    "temperature_c": 32.2,
-    "apparent_temperature_c": 33.2,
+    "temperature_c": 31.9,
+    "apparent_temperature_c": 32.4,
     "soil_temperature_0cm": 23.7,
-    "condition": "स्वच्छ आकाश",
+    "condition": "Clear sky",
     "condition_en": "Clear sky",
     "condition_hi": "साफ आसमान",
-    "wind_speed_kmh": 8.1,
+    "wind_speed_kmh": 8.2,
     "humidity_pct": 32,
-    "precipitation_mm": 0.3
+    "precipitation_mm": 0.3,
+    "weather_code": 0
   },
   "forecast_7d": [
     {
@@ -80,9 +81,9 @@
   ],
   "advisory": {
     "spray_flag": "green",
-    "spray_reason": "हवामान कोरडे व वारे शांत (<12 km/h) असल्याने आज फवारणीसाठी अगदी उत्तम वेळ आहे (Ideal calm dry weather for spraying).",
-    "soil_advice": "मातीचे पृष्ठभाग तापमान 23.7°C आहे — बियाणे पेरणी, अंकुरण व मुळांच्या वाढीसाठी अगदी अनुकूल आहे (Optimal soil temp for sowing).",
-    "irrigation_advice": "कमी आर्द्रता व उष्णतेमुळे हलके सिंचन करावे, तुषार किंवा ठिबक वापरावे (Low humidity; provide drip irrigation).",
+    "spray_reason": "Calm winds and dry conditions (<12 km/h). Ideal window for foliar spray.",
+    "soil_advice": "Surface soil temperature is 23.7°C — optimal for seed germination and healthy root growth.",
+    "irrigation_advice": "Low humidity and dry air; provide regular light drip irrigation.",
     "source": "Open-Meteo API (Live)"
   }
 }

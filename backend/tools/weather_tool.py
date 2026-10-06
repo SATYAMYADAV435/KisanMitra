@@ -211,7 +211,7 @@ def get_weather_forecast(district: str = "nashik", lang: str = "en") -> Dict[str
     )
 
     try:
-        resp = requests.get(url, timeout=4.0)
+        resp = requests.get(url, timeout=1.5)
         if resp.status_code == 200:
             data = resp.json()
             current = data.get("current", {})

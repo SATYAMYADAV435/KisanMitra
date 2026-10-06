@@ -150,6 +150,13 @@ class KisanApp {
     });
 
     this.applyLanguage(lang);
+    this.updateActiveFarmUI();
+    this.renderFarmIntelligenceForLanguage(lang);
+    this.retranslateDiagnosisCard(lang);
+    this.retranslateAdvisorCard(lang);
+    this.renderFarmsListTab();
+
+    // Background fetch fresh data from backend
     this.refreshFarmIntelligence();
   }
 
@@ -491,8 +498,169 @@ class KisanApp {
     }
   }
 
+  localizeFarmIntelligence(intel, lang) {
+    if (!intel) return null;
+    const farm = this.dataManager.getActiveFarm() || {};
+    const acres = farm.acres || 3.0;
+    const farmName = farm.name || 'Farm 1';
+    const cropKey = (farm.current_crop || 'onion').toLowerCase();
+    const irrKey = farm.irrigation_type || 'drip';
+    const t = (p, def) => this._t(p, def);
+    const w = intel.weather_summary || {};
+    const temp = w.temperature_c || 29;
+    const wind = w.wind_speed_kmh || 9;
+    const flag = w.spray_flag || 'green';
+
+    // 1. Localize Weather Condition strictly
+    let cond = 'Clear Sky';
+    const rawCond = (w.condition || '').toLowerCase();
+    if (lang === 'en') {
+      if (rawCond.includes('साफ') || rawCond.includes('निरभ्र') || rawCond.includes('clear')) cond = 'Clear Sky';
+      else if (rawCond.includes('धूप') || rawCond.includes('ढगाळ') || rawCond.includes('cloud')) cond = 'Partly Cloudy';
+      else if (rawCond.includes('बारिश') || rawCond.includes('पाऊस') || rawCond.includes('rain')) cond = 'Light Rain';
+      else cond = 'Clear Sky';
+    } else if (lang === 'hi') {
+      if (rawCond.includes('clear') || rawCond.includes('निरभ्र') || rawCond.includes('साफ')) cond = 'साफ आसमान';
+      else if (rawCond.includes('cloud') || rawCond.includes('ढगाळ') || rawCond.includes('धूप')) cond = 'धूप और बादल';
+      else if (rawCond.includes('rain') || rawCond.includes('पाऊस') || rawCond.includes('बारिश')) cond = 'हल्की बारिश';
+      else cond = 'साफ आसमान';
+    } else {
+      if (rawCond.includes('clear') || rawCond.includes('साफ') || rawCond.includes('निरभ्र')) cond = 'निरभ्र आकाश';
+      else if (rawCond.includes('cloud') || rawCond.includes('धूप') || rawCond.includes('ढगाळ')) cond = 'अंशतः ढगाळ';
+      else if (rawCond.includes('rain') || rawCond.includes('बारिश') || rawCond.includes('पाऊस')) cond = 'हलका पाऊस';
+      else cond = 'निरभ्र आकाश';
+    }
+
+    // 2. Localize Alerts strictly
+    let alerts = [];
+    if (flag === 'red' || wind > 18) {
+      if (lang === 'en') {
+        alerts.push({ level: 'high', title: 'Do Not Spray (High Wind)', message: `Wind speed is ${wind} km/h. Pesticide spray drift will lead to wastage.` });
+      } else if (lang === 'hi') {
+        alerts.push({ level: 'high', title: 'छिड़काव से बचें (तेज हवा)', message: `हवा की गति ${wind} किमी/घंटा है। छिड़काव का बहाव होने से दवा व्यर्थ होगी।` });
+      } else {
+        alerts.push({ level: 'high', title: 'फवारणी टाळा (तेज वारा)', message: `वाऱ्याचा वेग ${wind} किमी/तास आहे. औषध हवेत उडून वाया जाईल.` });
+      }
+    } else if (flag === 'amber' || wind > 12) {
+      if (lang === 'en') {
+        alerts.push({ level: 'medium', title: 'Spray With Caution', message: 'Spray only during calm hours before 11:00 AM or after 4:00 PM.' });
+      } else if (lang === 'hi') {
+        alerts.push({ level: 'medium', title: 'सावध छिड़काव', message: 'सुबह 11 बजे से पहले या शाम 4 बजे के बाद ही छिड़काव करें।' });
+      } else {
+        alerts.push({ level: 'medium', title: 'सावध फवारणी', message: 'सकाळी ११ च्या आधी किंवा संध्याकाळी ४ नंतरच फवारणी करावी.' });
+      }
+    } else {
+      if (lang === 'en') {
+        alerts.push({ level: 'low', title: 'Favorable Spray Conditions', message: `Temperature is ${temp}°C with gentle breeze. Ideal window for field application.` });
+      } else if (lang === 'hi') {
+        alerts.push({ level: 'low', title: 'छिड़काव के लिए अनुकूल मौसम', message: `तापमान ${temp}°C है और हवा धीमी है। खेत में काम के लिए उत्तम दिन।` });
+      } else {
+        alerts.push({ level: 'low', title: 'फवारणीस अनुकूल हवामान', message: `आज तापमान ${temp}°C असून हलका वारा आहे. फवारणीसाठी योग्य दिवस.` });
+      }
+    }
+
+    // 3. Localize Recommendations strictly
+    let recs = [];
+    if (cropKey.includes('onion') || cropKey.includes('कांदा') || cropKey.includes('प्याज')) {
+      if (lang === 'en') {
+        recs = [
+          'Treat onion seeds with Trichoderma @ 5g/kg before nursery sowing.',
+          'Ensure raised bed drainage and light irrigation at 10-12 day intervals.',
+          'Transplant seedlings only when 45-50 days old for sturdy root establishment.'
+        ];
+      } else if (lang === 'hi') {
+        recs = [
+          'नर्सरी बुवाई से पहले प्याज के बीजों को ट्राइकोडर्मा 5 ग्राम/किग्रा से उपचारित करें।',
+          'गादी क्यारियों (Raised beds) में उचित जल निकासी रखें और 10-12 दिन के अंतराल पर सिंचाई करें।',
+          'मजबूत जड़ फैलाव के लिए 45-50 दिन की उम्र वाले पौधों की ही रोपाई करें।'
+        ];
+      } else {
+        recs = [
+          'कांदा रोपवाटिका पेरणीपूर्वी बियाण्यास ट्रायकोडर्मा ५ ग्रॅम प्रति किलो चोळा.',
+          'गादी वाफ्यावर पाण्याचा योग्य निचरा ठेवा आणि १०-१२ दिवसांच्या अंतराने हलके पाणी द्या.',
+          'रोपांची पुनर्लागवड रोपे ४५ ते ५० दिवसांची असतानाच करा.'
+        ];
+      }
+    } else if (cropKey.includes('wheat') || cropKey.includes('गहू') || cropKey.includes('गेहूं')) {
+      if (lang === 'en') {
+        recs = [
+          'Irrigate at critical Crown Root Initiation (CRI) stage (21 days after sowing).',
+          'Apply split application of remaining Nitrogen at first irrigation.',
+          'Monitor lower leaf blades for yellow rust pustules.'
+        ];
+      } else if (lang === 'hi') {
+        recs = [
+          'बुवाई के 21 दिन बाद मुकुट जड़ (CRI) अवस्था पर पहली आवश्यक सिंचाई करें।',
+          'पहली सिंचाई के समय यूरिया (नाइट्रोजन) की शेष आधी मात्रा खेत में दें।',
+          'पीले रतुआ (Yellow Rust) के लक्षणों के लिए निचली पत्तियों की निगरानी करें।'
+        ];
+      } else {
+        recs = [
+          'पेरणीनंतर २१ दिवसांनी मुकुट मुळे (CRI) फुटण्याच्या अत्यंत महत्त्वाच्या टप्प्यावर पाणी द्या.',
+          'पहिल्या पाण्याच्या वेळी शिफारशीत युरिया खताचा दुसरा हप्ता द्या.',
+          'पानांवर तांबेरा रोगाचा प्रादुर्भाव आहे का याची वेळोवेळी पाहणी करा.'
+        ];
+      }
+    } else {
+      const irrName = t(`survey.irr_${irrKey}`, irrKey);
+      if (lang === 'en') {
+        recs = [
+          `Apply balanced NPK nutrition tailored for your ${acres} acre parcel.`,
+          `Optimize water application using your ${irrName} system based on soil moisture.`,
+          'Practice regular field scouting for early pest detection and biological control.'
+        ];
+      } else if (lang === 'hi') {
+        recs = [
+          `${acres} एकड़ खेत के लिए संतुलित NPK पोषण प्रबंधन अपनाएं।`,
+          `${irrName} प्रणाली द्वारा मिट्टी की नमी अनुसार सिंचाई का नियमन करें।`,
+          'कीट एवं रोगों की शीघ्र पहचान हेतु नियमित खेत का निरीक्षण करें।'
+        ];
+      } else {
+        recs = [
+          `${farmName} मधील ${acres} एकर क्षेत्रासाठी संतुलित खतांचा वापर करा.`,
+          `${irrName} सिंचनाद्वारे पाण्याचा कार्यक्षम वापर करा.`,
+          'कीड व रोगांचा प्रादुर्भाव सुरुवातीच्या टप्प्यातच ओळखून जैविक उपाय योजा.'
+        ];
+      }
+    }
+
+    // 4. Localize Soil Advice
+    let soilAdv = '';
+    if (lang === 'en') {
+      soilAdv = 'Soil pH is balanced (6.5 - 7.5). Continue applying organic matter and biofertilizers.';
+    } else if (lang === 'hi') {
+      soilAdv = 'मिट्टी का पीएच संतुलित (6.5 - 7.5) है। जैविक खाद और संवर्धक जारी रखें।';
+    } else {
+      soilAdv = 'मातीचा सामू (pH) आदर्श संतुलित आहे (६.५ ते ७.५). जिवाणू संवर्धक खते चालू ठेवा.';
+    }
+
+    return {
+      ...intel,
+      language: lang,
+      weather_summary: {
+        ...w,
+        condition: cond
+      },
+      alerts: alerts,
+      personalized_recommendations: recs,
+      soil_advice: soilAdv
+    };
+  }
+
+  renderFarmIntelligenceForLanguage(lang) {
+    if (!this.currentFarmIntelligence) return;
+    const localized = this.localizeFarmIntelligence(this.currentFarmIntelligence, lang);
+    if (localized) {
+      this.renderFarmIntelligence(localized);
+    }
+  }
+
   renderFarmIntelligence(intel) {
     if (!intel) return;
+    this.currentFarmIntelligence = intel;
+    this.farmIntelCache = this.farmIntelCache || {};
+    this.farmIntelCache[(intel.farm_id || 'default') + '_' + (intel.language || this.currentLanguage)] = intel;
+
     const t = (p, def) => this._t(p, def);
 
     // Scores
@@ -524,7 +692,25 @@ class KisanApp {
 
     const condEl = document.getElementById('hub-weather-cond');
     if (condEl) {
-      const cond = w.condition || (this.currentLanguage === 'en' ? 'Clear Sky' : this.currentLanguage === 'hi' ? 'साफ आसमान' : 'स्वच्छ आकाश');
+      // Localize condition strictly to current language
+      let cond = w.condition || '';
+      const rawC = cond.toLowerCase();
+      if (this.currentLanguage === 'en') {
+        if (rawC.includes('साफ') || rawC.includes('निरभ्र') || rawC.includes('clear')) cond = 'Clear Sky';
+        else if (rawC.includes('धूप') || rawC.includes('ढगाळ') || rawC.includes('cloud')) cond = 'Partly Cloudy';
+        else if (rawC.includes('बारिश') || rawC.includes('पाऊस') || rawC.includes('rain')) cond = 'Light Rain';
+        else cond = 'Clear Sky';
+      } else if (this.currentLanguage === 'hi') {
+        if (rawC.includes('clear') || rawC.includes('निरभ्र') || rawC.includes('साफ')) cond = 'साफ आसमान';
+        else if (rawC.includes('cloud') || rawC.includes('ढगाळ') || rawC.includes('धूप')) cond = 'धूप और बादल';
+        else if (rawC.includes('rain') || rawC.includes('पाऊस') || rawC.includes('बारिश')) cond = 'हल्की बारिश';
+        else cond = 'साफ आसमान';
+      } else {
+        if (rawC.includes('clear') || rawC.includes('साफ') || rawC.includes('निरभ्र')) cond = 'निरभ्र आकाश';
+        else if (rawC.includes('cloud') || rawC.includes('धूप') || rawC.includes('ढगाळ')) cond = 'अंशतः ढगाळ';
+        else if (rawC.includes('rain') || rawC.includes('बारिश') || rawC.includes('पाऊस')) cond = 'हलका पाऊस';
+        else cond = 'निरभ्र आकाश';
+      }
       const windLbl = t('hub.weather_wind', 'Wind');
       const kmhUnit = this.currentLanguage === 'en' ? 'km/h' : this.currentLanguage === 'hi' ? 'किमी/घंटा' : 'किमी/तास';
       condEl.innerText = `${cond} • ${windLbl} ${w.wind_speed_kmh || 9} ${kmhUnit}`;
@@ -1076,6 +1262,10 @@ class KisanApp {
   renderDiagnosisCard(diag) {
     const card = document.getElementById('diagnosis-result-card');
     if (!card) return;
+    this.currentDiagnosis = diag;
+    this.diagnosisCache = this.diagnosisCache || {};
+    this.diagnosisCache[this.currentLanguage] = diag;
+
     const t = (p, def) => this._t(p, def);
 
     document.getElementById('diag-crop-name').innerText = diag.crop_name || 'Crop';
@@ -1111,6 +1301,262 @@ class KisanApp {
 
     card.style.display = 'block';
     card.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  retranslateDiagnosisCard(lang) {
+    const card = document.getElementById('diagnosis-result-card');
+    if (!card || card.style.display === 'none') return;
+    if (!this.currentDiagnosis) return;
+
+    if (this.diagnosisCache && this.diagnosisCache[lang]) {
+      this.renderDiagnosisCard(this.diagnosisCache[lang]);
+      return;
+    }
+
+    const diag = this.currentDiagnosis;
+    const condStr = (diag.condition || '').toLowerCase();
+    const cropStr = (diag.crop_name || '').toLowerCase();
+    const t = (p, def) => this._t(p, def);
+
+    let localizedCrop = 'Crop';
+    let localizedCond = diag.condition || 'Healthy Plant';
+    let localizedSymptoms = diag.symptoms || [];
+    let localizedActions = diag.recommended_actions || [];
+
+    const isTomato = cropStr.includes('tomato') || cropStr.includes('टोमॅटो') || cropStr.includes('टमाटर');
+    const isOnion = cropStr.includes('onion') || cropStr.includes('कांदा') || cropStr.includes('प्या');
+    const isWheat = cropStr.includes('wheat') || cropStr.includes('गहू') || cropStr.includes('गेहूं');
+    const isGram = cropStr.includes('gram') || cropStr.includes('हरभरा') || cropStr.includes('चना');
+
+    if (isTomato) {
+      if (lang === 'en') {
+        localizedCrop = 'Tomato';
+        localizedCond = 'Early Blight (Alternaria solani)';
+        localizedSymptoms = [
+          'Target-board concentric circular dark brown rings on lower foliage.',
+          'Yellowing halo around affected leaf spots.',
+          'Foliage senescence spreading upwards from ground level.'
+        ];
+        localizedActions = [
+          '1. Prune and destroy infected lower leaves to restrict fungal spore splash.',
+          '2. Foliar application of Copper Oxychloride (COC) @ 2.5g/L water.',
+          '3. Apply balanced Calcium and Boron to reinforce cell wall strength.'
+        ];
+      } else if (lang === 'hi') {
+        localizedCrop = 'टमाटर';
+        localizedCond = 'अगेती झुलसा रोग (Early Blight)';
+        localizedSymptoms = [
+          'निचली पत्तियों पर गोल घेरेदार कत्थई-काले धब्बे (Target spots)।',
+          'धब्बों के आसपास पत्तियां पीली पड़कर झड़ने लगना।',
+          'जमीन के संपर्क वाली पत्तियों पर संक्रमण पहले दिखना।'
+        ];
+        localizedActions = [
+          '1. संक्रमित निचली पत्तियों को तोड़कर खेत से दूर नष्ट करें।',
+          '2. कॉपर ऑक्सीक्लोराइड 2.5 ग्राम प्रति लीटर पानी में मिलाकर छिड़कें।',
+          '3. फल विकास के समय कैल्शियम और बोरॉन का संतुलित पोषण दें।'
+        ];
+      } else {
+        localizedCrop = 'टोमॅटो';
+        localizedCond = 'अल्टरनेरिया करपा रोग';
+        localizedSymptoms = [
+          'खालच्या जुन्या पानांवर काळे-तपकिरी गोलाकार चक्राकार वलये (Target board spots).',
+          'पाने पिवळी पडून गळण्यास सुरुवात होणे.',
+          'ढगाळ व आर्द्र हवामानात रोगाचा वेग वाढतो.'
+        ];
+        localizedActions = [
+          '१. बाधित पाने गोळा करून शेताबाहेर नष्ट करा.',
+          '२. कॉपर ऑक्सिक्लोराईड (COC) २.५ ग्रॅम प्रति लिटर पाण्यात फवारा.',
+          '३. फळधारणेच्या काळात कॅल्शियम व बोरॉनचे संतुलित पोषण ठेवा.'
+        ];
+      }
+    } else if (isOnion) {
+      if (condStr.includes('purple') || condStr.includes('करपा') || condStr.includes('धब्बा')) {
+        if (lang === 'en') {
+          localizedCrop = 'Rabi Onion';
+          localizedCond = 'Purple Blotch Fungus (Alternaria porri)';
+          localizedSymptoms = [
+            'Small, sunken, elliptical purple-brown lesions on older leaves.',
+            'Yellow chlorotic halos surrounding lesions leading to tip drying.',
+            'Spreading accelerated under high relative humidity (>80%).'
+          ];
+          localizedActions = [
+            '1. Spray preventive Neem Oil @ 2ml/L or Trichoderma @ 5g/L.',
+            '2. For moderate infection, spray Mancozeb 75% WP @ 2.5g/L on clear sunny day.',
+            '3. Avoid excessive nitrogen (Urea) and maintain field drainage.'
+          ];
+        } else if (lang === 'hi') {
+          localizedCrop = 'रबी प्याज';
+          localizedCond = 'जामुनी धब्बा रोग (Purple Blotch)';
+          localizedSymptoms = [
+            'पुरानी पत्तियों पर अंडाकार जामुनी-भूरे रंग के धब्बे दिखाई दे रहे हैं।',
+            'धब्बों के किनारे पीले पड़ रहे हैं और पत्तियों के सिरे सूखने लगे हैं।',
+            'हवा में नमी अधिक होने पर रोग का फैलाव तेजी से होता है।'
+          ];
+          localizedActions = [
+            '1. नीम तेल 2 मिली या ट्राइकोडर्मा 5 ग्राम प्रति लीटर पानी में मिलाकर छिड़कें।',
+            '2. प्रकोप अधिक होने पर मेंकोजेब (Mancozeb 75% WP) 2.5 ग्राम प्रति लीटर का छिड़काव करें।',
+            '3. खेत में जलभराव न होने दें और यूरिया का अत्यधिक उपयोग रोकें।'
+          ];
+        } else {
+          localizedCrop = 'रब्बी कांदा';
+          localizedCond = 'जांभळा करपा रोग - सुरुवातीची लक्षणे';
+          localizedSymptoms = [
+            'पानांवर लंबगोलाकार जांभळट-तपकिरी रंगाचे लहान डाग दिसत आहेत.',
+            'डागांच्या कडा पिवळसर असून पाने वाळण्यास सुरुवात झाली आहे.',
+            'हवेतील आर्द्रता वाढल्यास डागांचा आकार वेगाने वाढतो.'
+          ];
+          localizedActions = [
+            '१. निंबोळी अर्क ५ मिली किंवा ट्रायकोडर्मा ५ ग्रॅम प्रति लिटर पाण्यात मिसळून फवारा.',
+            '२. जास्त प्रादुर्भाव असल्यास मॅन्कोझेब २.५ ग्रॅम प्रति लिटर पाण्यात मिसळून फवारा.',
+            '३. शेतात पाण्याचा निचरा योग्य ठेवा आणि नत्राचा (युरिया) अतिवापर टाळा.'
+          ];
+        }
+      } else {
+        if (lang === 'en') {
+          localizedCrop = 'Rabi Onion';
+          localizedCond = 'Thrips Infestation (Silver Patches & Curling)';
+          localizedSymptoms = [
+            'Silvery-white patches and streaks across inner leaf surfaces.',
+            'Leaf tips curling and drying under dry atmospheric conditions.',
+            'Pest colonies sheltering between inner leaf sheaths.'
+          ];
+          localizedActions = [
+            '1. Install 20 blue & yellow sticky traps per acre for physical trapping.',
+            '2. Spray Azadirachtin 10000 ppm @ 2ml/L water in early morning hours.',
+            '3. If pest count exceeds threshold, consider university-approved bio-insecticide.'
+          ];
+        } else if (lang === 'hi') {
+          localizedCrop = 'रबी प्याज';
+          localizedCond = 'थ्रिप्स कीट प्रकोप (पत्तियों पर सफेद-चांदी जैसे धब्बे)';
+          localizedSymptoms = [
+            'पत्तियों पर चांदी जैसे सफेद चमकीले चकत्ते दिखाई दे रहे हैं।',
+            'पत्तियों के सिरे मुड़कर कुरकुरे (Curling) हो रहे हैं।',
+            'सूखे और गर्म मौसम में थ्रिप्स तेजी से फैलते हैं।'
+          ];
+          localizedActions = [
+            '1. खेत में प्रति एकड़ 20 नीले और पीले चिपचिपे ट्रैप लगाएं।',
+            '2. नीम तेल 2 मिली प्रति लीटर पानी में सुबह के समय छिड़कें।',
+            '3. सुरक्षा नियमों का पालन करते हुए अनुशंसित कीटनाशक का उपयोग करें।'
+          ];
+        } else {
+          localizedCrop = 'रब्बी कांदा';
+          localizedCond = 'फुलकिडे प्रादुर्भाव (थ्रिप्स)';
+          localizedSymptoms = [
+            'पानांवर पांढरट-चांदेरी रंगाचे चट्टे उमटलेले दिसत आहेत.',
+            'पानांचे शेंडे वाकडे होऊन चुरमुरल्यासारखे झाले आहेत.',
+            'उष्ण व कोरड्या हवामानामुळे किडीचा प्रादुर्भाव वाढतो.'
+          ];
+          localizedActions = [
+            '१. शेतात प्रति एकरी २० निळे व पिवळे चिकट सापळे लावा.',
+            '२. कडुनिंब तेल २ मिली प्रति लिटर पाण्यात मिसळून फवारा.',
+            '३. तीव्र प्रादुर्भावात विद्यापीठ शिफारशीनुसारच कीटकनाशक वापरा.'
+          ];
+        }
+      }
+    } else if (isWheat) {
+      if (lang === 'en') {
+        localizedCrop = 'Wheat Crop';
+        localizedCond = 'Foliar Rust / Leaf Blight Symptoms';
+        localizedSymptoms = [
+          'Yellowish orange pustules arranged linearly on upper leaf surface.',
+          'Reduced photosynthetic area causing light chlorosis.',
+          'Foliar moisture in early morning accelerating fungal spread.'
+        ];
+        localizedActions = [
+          '1. Spray Propiconazole 25% EC @ 1 ml per liter of water at first sign of yellow rust.',
+          '2. Avoid excessive irrigation that leaves standing water in root zones.',
+          '3. Apply recommended potash to improve plant disease tolerance.'
+        ];
+      } else if (lang === 'hi') {
+        localizedCrop = 'गेहूं की फसल';
+        localizedCond = 'गेरुआ / झुलसा रोग के लक्षण';
+        localizedSymptoms = [
+          'पत्तियों की ऊपरी सतह पर कतार में पीले-नारंगी रंग के दाने (Pustules)।',
+          'संक्रमित पत्तियों का पीला पड़कर सूखना।',
+          'सुबह के समय अधिक ओस और ठंडी हवा से फैलाव में तेजी।'
+        ];
+        localizedActions = [
+          '1. प्रोपिकोनाजोल (Propiconazole 25% EC) 1 मिली प्रति लीटर पानी में मिलाकर छिड़कें।',
+          '2. खेत में अत्यधिक पानी जमा न होने दें और संतुलित पोटाश खाद दें।',
+          '3. रोग प्रतिरोधी उन्नत किस्मों की ही पहचान रखें।'
+        ];
+      } else {
+        localizedCrop = 'गहू पीक';
+        localizedCond = 'तांबेरा किंवा पानांवरील करपा लक्षणे';
+        localizedSymptoms = [
+          'पानांच्या वरच्या भागावर पिवळसर-तपकिरी रंगाचे लहान ठिपके व पट्टे.',
+          'हरितद्रव्याचे प्रमाण घटल्याने पाने पिवळी पडणे.',
+          'थंड व दमट हवेत बुरशीचा प्रादुर्भाव वाढतो.'
+        ];
+        localizedActions = [
+          '१. प्रोपिकोनाझोल १ मिली प्रति लिटर पाण्यात मिसळून फवारा.',
+          '२. शेतात गरजेपेक्षा जास्त पाणी साचू देऊ नका.',
+          '३. पिकाच्या प्रतिकारशक्तीसाठी शिफारशीत पालाश खताचा वापर करा.'
+        ];
+      }
+    } else if (isGram) {
+      if (lang === 'en') {
+        localizedCrop = 'Gram / Chickpea';
+        localizedCond = 'Pod Borer (Helicoverpa armigera) Foliage Damage';
+        localizedSymptoms = [
+          'Irregular chewed holes on tender leaves and young branch tips.',
+          'Presence of green or brownish caterpillar frass on lower foliage.',
+          'Webbing or wilting in localized patches.'
+        ];
+        localizedActions = [
+          '1. Install 5 pheromone traps per acre for early pest monitoring.',
+          '2. Spray 5% Neem Seed Kernel Extract (NSKE) or Chlorantraniliprole @ 0.3 ml/L water.',
+          '3. Plant bird perches (T-shaped sticks) in the field for natural predation.'
+        ];
+      } else if (lang === 'hi') {
+        localizedCrop = 'चना / छोला फसल';
+        localizedCond = 'घाटी छेदक इल्ली (Pod Borer) का प्रकोप';
+        localizedSymptoms = [
+          'कोमल पत्तियों और शाखाओं के सिरों पर कटे हुए छेद दिखना।',
+          'पौधों पर इल्ली का मल और खाए हुए पत्तों के अवशेष।',
+          'फूल और कलियों पर कीट का सीधा प्रभाव।'
+        ];
+        localizedActions = [
+          '1. खेत में प्रति एकड़ 5 फेरोमोन ट्रैप लगाएं।',
+          '2. नीम बीज अर्क (NSKE 5%) अथवा अनुशंसित कीटनाशक का हल्का छिड़काव करें।',
+          '3. खेत में टी आकार की पक्षी बैठकी लगाएं।'
+        ];
+      } else {
+        localizedCrop = 'हरभरा पीक';
+        localizedCond = 'घाटे अळी प्रादुर्भाव व पानांचे नुकसान';
+        localizedSymptoms = [
+          'कोवळ्या पानांवर आणि शेंड्यांवर अनियमित छिद्रे पडलेली असणे.',
+          'पानांवर अळीची विष्ठा व कुरतडलेली पाने दिसणे.',
+          'फुलोरा आणि घाटे भरण्याच्या काळात प्रादुर्भाव वाढतो.'
+        ];
+        localizedActions = [
+          '१. शेतात एकरी ५ कामगंध सापळे लावा.',
+          '२. ५% निंबोळी अर्क किंवा शिफारशीत कीटकनाशक प्रति लिटर पाण्यात फवारा.',
+          '३. शेतात पक्षी थांबण्यासाठी इंग्रजी T आकाराचे पक्षी थांबे लावा.'
+        ];
+      }
+    }
+
+    const updated = {
+      ...diag,
+      crop_name: localizedCrop,
+      condition: localizedCond,
+      symptoms: localizedSymptoms,
+      recommended_actions: localizedActions,
+      disclaimer: t('doctor.disclaimer', 'Indicative diagnostic advisory based on visible image symptoms.')
+    };
+    this.currentDiagnosis = updated;
+    this.diagnosisCache[lang] = updated;
+    this.renderDiagnosisCard(updated);
+  }
+
+  retranslateAdvisorCard(lang) {
+    const overlay = document.getElementById('result-overlay');
+    if (!overlay || !overlay.classList.contains('active')) return;
+    if (!this.lastIntentKey) return;
+    this.loadMockCard(this.lastIntentKey).then(card => {
+      if (card) this.renderResultCard(card);
+    });
   }
 
   /* ---------------- Voice Interaction ---------------- */
@@ -1250,6 +1696,7 @@ class KisanApp {
   }
 
   async triggerFlow(intentKey) {
+    this.lastIntentKey = intentKey;
     this.showThinkingState(true);
     const farm = this.dataManager.getActiveFarm() || {};
 

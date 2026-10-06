@@ -4,12 +4,12 @@
   "longitude": 73.85,
   "current": {
     "temperature_c": 33.0,
-    "apparent_temperature_c": 33.7,
+    "apparent_temperature_c": 33.6,
     "soil_temperature_0cm": 24.1,
     "condition": "Mainly clear",
     "condition_en": "Mainly clear",
     "condition_hi": "मुख्य रूप से साफ",
-    "wind_speed_kmh": 6.2,
+    "wind_speed_kmh": 6.0,
     "humidity_pct": 29,
     "precipitation_mm": 0.0,
     "weather_code": 1
