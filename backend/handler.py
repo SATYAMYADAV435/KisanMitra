@@ -281,9 +281,17 @@ def process_farm_intelligence_request(payload: Dict[str, Any]) -> Dict[str, Any]
 
 def process_crop_image_request(payload: Dict[str, Any]) -> Dict[str, Any]:
     from backend.image_analyzer import analyze_crop_image
-    image_b64 = payload.get("image", "")
+    image_b64 = payload.get("image") or payload.get("image_base64") or ""
     mime_type = payload.get("mime_type", "image/jpeg")
-    farm_context = payload.get("farm_context", {})
+    farm_context = dict(payload.get("farm_context") or {})
+    if not farm_context.get("language") and payload.get("language"):
+        farm_context["language"] = payload.get("language")
+    if not farm_context.get("current_crop") and (payload.get("crop") or payload.get("current_crop")):
+        farm_context["current_crop"] = payload.get("crop") or payload.get("current_crop")
+    if not farm_context.get("district") and payload.get("district"):
+        farm_context["district"] = payload.get("district")
+    if not farm_context.get("crop_stage") and payload.get("crop_stage"):
+        farm_context["crop_stage"] = payload.get("crop_stage")
     return analyze_crop_image(image_b64, mime_type=mime_type, farm_context=farm_context)
 
 def lambda_handler(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:

@@ -23,7 +23,13 @@ def analyze_crop_image(
     crop_name = (farm_context.get("current_crop") or "crop").lower()
     crop_stage = (farm_context.get("crop_stage") or "vegetative").lower()
     district = farm_context.get("district") or "nashik"
-    lang = farm_context.get("language") or "mr"
+    raw_lang = (farm_context.get("language") or "mr").lower().strip()
+    if raw_lang.startswith("en"):
+        lang = "en"
+    elif raw_lang.startswith("hi"):
+        lang = "hi"
+    else:
+        lang = "mr"
 
     # Attempt live Bedrock Claude 3 Haiku vision if client is active and USE_CACHE is False
     if not USE_CACHE:
@@ -83,6 +89,13 @@ def analyze_crop_image(
     return _domain_agricultural_diagnosis(crop_name, crop_stage, district, image_base64, lang)
 
 def _domain_agricultural_diagnosis(crop: str, stage: str, district: str, image_data: str, lang: str = "mr") -> Dict[str, Any]:
+    raw_l = (lang or "mr").lower().strip()
+    if raw_l.startswith("en"):
+        lang = "en"
+    elif raw_l.startswith("hi"):
+        lang = "hi"
+    else:
+        lang = "mr"
     data_len = len(image_data) if image_data else 1000
 
     if "onion" in crop or "कांदा" in crop or "प्याज" in crop:
@@ -125,8 +138,8 @@ def _domain_agricultural_diagnosis(crop: str, stage: str, district: str, image_d
                 }
             else:
                 return {
-                    "crop_name": "Rabi Onion (रब्बी कांदा)",
-                    "condition": "Purple Blotch Fungus (जांभळा करपा) - सुरुवातीची लक्षणे",
+                    "crop_name": "रब्बी कांदा",
+                    "condition": "जांभळा करपा रोग - सुरुवातीची लक्षणे",
                     "risk_level": "moderate",
                     "symptoms": [
                         "पानांवर लंबगोलाकार जांभळट-तपकिरी रंगाचे लहान डाग दिसत आहेत.",
@@ -180,8 +193,8 @@ def _domain_agricultural_diagnosis(crop: str, stage: str, district: str, image_d
                 }
             else:
                 return {
-                    "crop_name": "Rabi Onion (रब्बी कांदा)",
-                    "condition": "Thrips Infestation (फुलकिडे प्रादुर्भाव)",
+                    "crop_name": "रब्बी कांदा",
+                    "condition": "फुलकिडे प्रादुर्भाव (थ्रिप्स)",
                     "risk_level": "moderate",
                     "symptoms": [
                         "पानांवर पांढरट-चांदेरी रंगाचे चट्टे उमटलेले दिसत आहेत.",
@@ -236,8 +249,8 @@ def _domain_agricultural_diagnosis(crop: str, stage: str, district: str, image_d
             }
         else:
             return {
-                "crop_name": "Tomato (टोमॅटो)",
-                "condition": "Early Blight (अल्टरनेरिया करपा)",
+                "crop_name": "टोमॅटो",
+                "condition": "अल्टरनेरिया करपा रोग",
                 "risk_level": "moderate",
                 "symptoms": [
                     "खालच्या जुन्या पानांवर काळे-तपकिरी गोलाकार चक्राकार वलये (Target board spots).",
