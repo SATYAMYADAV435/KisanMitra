@@ -28,10 +28,22 @@ def run_market_agent(profile: FarmerProfile, crop: Optional[str] = "onion") -> A
         risk = "low"
 
     trend_sign = "+" if pct_change > 0 else ""
-    finding = (
-        f"{market} बाजारात {target_crop.capitalize()} पिकाचा आजचा सरासरी दर ₹{modal_price} प्रति क्विंटल आहे. "
-        f"गेल्या ३० दिवसांत बाजारभाव कल {direction} ({trend_sign}{pct_change}%) राहिला आहे."
-    )
+    lang = profile.language or "mr"
+    if lang == "en":
+        finding = (
+            f"At {market} APMC, modal price for {target_crop.capitalize()} is ₹{modal_price} per quintal. "
+            f"30-day price trend has been {direction} ({trend_sign}{pct_change}%)."
+        )
+    elif lang == "hi":
+        finding = (
+            f"{market} मंडी में {target_crop.capitalize()} का औसत भाव ₹{modal_price} प्रति क्विंटल है। "
+            f"पिछले ३० दिनों में भाव का रुख {direction} ({trend_sign}{pct_change}%) रहा है।"
+        )
+    else:
+        finding = (
+            f"{market} बाजारात {target_crop.capitalize()} पिकाचा आजचा सरासरी दर ₹{modal_price} प्रति क्विंटल आहे. "
+            f"गेल्या ३० दिवसांत बाजारभाव कल {direction} ({trend_sign}{pct_change}%) राहिला आहे."
+        )
 
     source_name = price_info.get("source", "MSAMB Archives")
     data_source = "agmarknet" if "Agmarknet" in source_name else "csv"

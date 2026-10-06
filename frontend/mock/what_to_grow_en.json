@@ -1,0 +1,22 @@
+{
+  "title": "Rabi Crop Planning & Recommendation",
+  "metrics": [
+    { "label": "Estimated Income", "value": "₹1,40,000 / acre" },
+    { "label": "Duration", "value": "110 - 120 Days" },
+    { "label": "Price Trend", "value": "↗ ₹1,850 / qtl" }
+  ],
+  "summary_lines": [
+    "1. Rabi Onion (Bhima Kiran / N-2-4-1) offers strong returns for medium black soils under controlled drip.",
+    "2. Gram / Chickpea (Digvijay) provides steady profits with minimal irrigation requirement.",
+    "3. Wheat (Samadhan) is an ideal low-risk rotation option if regular canal or well water is secured."
+  ],
+  "steps": [
+    "1. Prepare raised beds with drip lateral spacing before mid-November.",
+    "2. Treat seeds with Trichoderma (5g/kg) and Rhizobium culture prior to sowing.",
+    "3. Apply well-decomposed organic manure to preserve root zone moisture."
+  ],
+  "labels": ["Representative Data", "Gross Income Before Cost", "Seasonal Estimate"],
+  "sources": ["Agricultural University (MPKV Rahuri)", "Local Krishi Vigyan Kendra"],
+  "speak_text": "Rabi Onion and Gram are your top profitable crop options this season. Ensure seed treatment before sowing and maintain optimal raised beds.",
+  "language": "en"
+}

@@ -60,7 +60,8 @@ def _extract_metric_items(
     intent: str,
     agent_findings: List[AgentResult],
     recommender_data: Optional[Dict[str, Any]],
-    lang: str = "mr"
+    lang: str = "mr",
+    profile: Optional[FarmerProfile] = None
 ) -> List[MetricItem]:
     """Generates up to 3 high-contrast key metric badges for the Bohemian UI card."""
     metrics = []
@@ -116,31 +117,57 @@ def _extract_metric_items(
 
     if intent == "prices":
         market_res = next((a for a in agent_findings if a.agent == "market"), None)
+        price = "₹1,850"
+        market_name = "APMC Mandi"
+        if profile and profile.district:
+            from backend.tools.regions import get_district_info
+            d_info = get_district_info(profile.district)
+            if d_info and d_info.get("primary_markets"):
+                market_name = d_info["primary_markets"][0]
+
         if market_res:
-            price = "₹1,850"
             for ev in market_res.evidence:
-                if "Modal Price" in ev: price = ev.split(":")[-1].strip()
+                if ev.startswith("Modal Price:"):
+                    price = ev.split(":")[-1].strip()
+                elif ev.startswith("Market:"):
+                    m_val = ev.split(":")[-1].strip()
+                    if m_val:
+                        market_name = m_val
 
-            if lang == "mr":
-                metrics.append(MetricItem(label="सरासरी भाव", value=price))
-                metrics.append(MetricItem(label="बाजार कल", value="↗ स्थिर/वाढता"))
-                metrics.append(MetricItem(label="बाजारपेठ", value="नाशिक/लासलगाव"))
-            elif lang == "hi":
-                metrics.append(MetricItem(label="औसत भाव", value=price))
-                metrics.append(MetricItem(label="बाजार रुख", value="↗ स्थिर/बढ़त"))
-                metrics.append(MetricItem(label="मंडी", value="नासिक/लासलगांव"))
-            else:
-                metrics.append(MetricItem(label="Modal Price", value=price))
-                metrics.append(MetricItem(label="Trend", value="↗ Up / Stable"))
-                metrics.append(MetricItem(label="Primary Mandi", value="Lasalgaon"))
-            return metrics[:3]
+        if lang == "mr":
+            metrics.append(MetricItem(label="सरासरी भाव", value=price))
+            metrics.append(MetricItem(label="बाजार कल", value="↗ स्थिर/वाढता"))
+            metrics.append(MetricItem(label="बाजारपेठ", value=market_name))
+        elif lang == "hi":
+            metrics.append(MetricItem(label="औसत भाव", value=price))
+            metrics.append(MetricItem(label="बाजार रुख", value="↗ स्थिर/बढ़त"))
+            metrics.append(MetricItem(label="मंडी", value=market_name))
+        else:
+            metrics.append(MetricItem(label="Modal Price", value=price))
+            metrics.append(MetricItem(label="Trend", value="↗ Up / Stable"))
+            metrics.append(MetricItem(label="Primary Mandi", value=market_name))
+        return metrics[:3]
 
-    # Default fallback metrics
-    return [
-        MetricItem(label="सल्ला दर्जा" if lang == "mr" else "Advisory Status", value="प्रमाणित"),
-        MetricItem(label="हंगाम" if lang == "mr" else "Season", value="रब्बी २०२६"),
-        MetricItem(label="क्षेत्र" if lang == "mr" else "Region", value="महाराष्ट्र")
-    ]
+    # Default fallback metrics with language cleanliness and actual district
+    region_val = profile.district.capitalize() if (profile and profile.district) else "Maharashtra"
+    if lang == "en":
+        return [
+            MetricItem(label="Advisory Status", value="Certified"),
+            MetricItem(label="Season", value="Rabi 2026"),
+            MetricItem(label="District", value=region_val)
+        ]
+    elif lang == "hi":
+        return [
+            MetricItem(label="सलाह स्थिति", value="प्रमाणित"),
+            MetricItem(label="मौसम", value="रबी २०२६"),
+            MetricItem(label="जिला", value=region_val)
+        ]
+    else:
+        return [
+            MetricItem(label="सल्ला दर्जा", value="प्रमाणित"),
+            MetricItem(label="हंगाम", value="रब्बी २०२६"),
+            MetricItem(label="जिल्हा", value=region_val)
+        ]
 
 def synthesize_answer(
     router_output: RouterOutput,
@@ -187,15 +214,31 @@ def synthesize_answer(
         cleaned_json = _clean_json(raw_resp)
         card_dict = json.loads(cleaned_json)
 
-        # Enforce schemas and constraints
-        title = card_dict.get("title", "शेती सल्ला")
-        summary_lines = card_dict.get("summary_lines", [])[:3]
-        steps = card_dict.get("steps", [])[:3]
-        labels = card_dict.get("labels", ["प्रातिनिधिक माहिती", "खर्चापूर्वीचे उत्पन्न"])
-        sources = card_dict.get("sources", ["महात्मा फुले कृषी विद्यापीठ (MPKV)"])
-        speak_text = card_dict.get("speak_text", summary_lines[0] if summary_lines else "सल्ला उपलब्ध आहे.")
+        # Enforce schemas and constraints with language-specific fallbacks
+        if lang == "en":
+            default_title = "Agricultural Advisory"
+            default_labels = ["Representative Data", "Indicative Guidance"]
+            default_sources = ["Agricultural University (MPKV Rahuri)"]
+            default_speak = "Agricultural advisory is available."
+        elif lang == "hi":
+            default_title = "कृषि सलाह"
+            default_labels = ["प्रातिनिधिक जानकारी", "अनुमानित मार्गदर्शन"]
+            default_sources = ["महात्मा फुले कृषि विद्यापीठ (MPKV)"]
+            default_speak = "कृषि सलाह उपलब्ध है।"
+        else:
+            default_title = "शेती सल्ला"
+            default_labels = ["प्रातिनिधिक माहिती", "खर्चापूर्वीचे उत्पन्न"]
+            default_sources = ["महात्मा फुले कृषी विद्यापीठ (MPKV)"]
+            default_speak = "सल्ला उपलब्ध आहे."
 
-        metrics = _extract_metric_items(intent, agent_findings, recommender_data, lang)
+        summary_lines = card_dict.get("summary_lines", [])[:3]
+        title = card_dict.get("title", default_title)
+        steps = card_dict.get("steps", [])[:3]
+        labels = card_dict.get("labels", default_labels)
+        sources = card_dict.get("sources", default_sources)
+        speak_text = card_dict.get("speak_text", summary_lines[0] if summary_lines else default_speak)
+
+        metrics = _extract_metric_items(intent, agent_findings, recommender_data, lang, profile=profile)
 
         return AnswerCard(
             title=title,
@@ -210,5 +253,5 @@ def synthesize_answer(
     except Exception as exc:
         logger.warning(f"Supervisor generation failed ({exc}); returning safe fallback card.")
         fallback = safe_fallback_card(lang)
-        fallback.metrics = _extract_metric_items(intent, agent_findings, recommender_data, lang)
+        fallback.metrics = _extract_metric_items(intent, agent_findings, recommender_data, lang, profile=profile)
         return fallback

@@ -52,40 +52,136 @@ def _get_wmo_description(code: int, lang: str = "mr") -> str:
         return entry[0]
     return entry[1]
 
-def _load_cached_weather(district: str) -> Dict[str, Any]:
+def _build_advisory(
+    spray_flag: str,
+    wind_now: float,
+    rain_today: float,
+    soil_temp_now: float,
+    humidity_now: int,
+    temp_now: float,
+    lang: str = "en"
+) -> Dict[str, str]:
+    if lang == "en":
+        if spray_flag == "red":
+            spray_reason = f"Rain expected ({rain_today} mm) or high winds ({wind_now} km/h). Postpone spraying to prevent chemical wastage."
+        elif spray_flag == "amber":
+            spray_reason = f"Moderate winds ({wind_now} km/h). Spray with caution during early morning or late evening."
+        else:
+            spray_reason = "Calm winds and dry conditions (<12 km/h). Ideal window for foliar spray."
+
+        if 18.0 <= soil_temp_now <= 30.0:
+            soil_advice = f"Surface soil temperature is {soil_temp_now}°C — optimal for seed germination and healthy root growth."
+        elif soil_temp_now < 18.0:
+            soil_advice = f"Soil is cool ({soil_temp_now}°C). Delay sowing until mid-morning when soil warms up."
+        else:
+            soil_advice = f"Soil temperature is elevated ({soil_temp_now}°C). Apply organic mulch to retain moisture."
+
+        if rain_today > 5.0:
+            irrigation_advice = "Adequate precipitation expected today; postpone active irrigation."
+        elif humidity_now < 40 and temp_now > 30.0:
+            irrigation_advice = "Low humidity and dry air; provide regular light drip irrigation."
+        else:
+            irrigation_advice = "Normal soil moisture; maintain standard irrigation schedule."
+
+    elif lang == "hi":
+        if spray_flag == "red":
+            spray_reason = f"बारिश की संभावना या तेज हवा ({wind_now} किमी/घंटा) के कारण आज कीटनाशक छिड़काव से बचें।"
+        elif spray_flag == "amber":
+            spray_reason = f"मध्यम हवा ({wind_now} किमी/घंटा) है। केवल सुबह या शाम के शांत समय ही सावधानी से छिड़काव करें।"
+        else:
+            spray_reason = "मौसम साफ और हवा शांत (<12 किमी/घंटा) है। आज छिड़काव के लिए सर्वोत्तम समय है।"
+
+        if 18.0 <= soil_temp_now <= 30.0:
+            soil_advice = f"मिट्टी का तापमान {soil_temp_now}°C है — बुवाई, अंकुरण और जड़ों के विकास के लिए बहुत अनुकूल है।"
+        elif soil_temp_now < 18.0:
+            soil_advice = f"मिट्टी ठंडी ({soil_temp_now}°C) है। धूप निकलने के बाद ही बुवाई करें।"
+        else:
+            soil_advice = f"मिट्टी का तापमान अधिक ({soil_temp_now}°C) है। नमी बनाए रखने के लिए मल्चिंग का उपयोग करें।"
+
+        if rain_today > 5.0:
+            irrigation_advice = "आज बारिश होने की संभावना है, सिंचाई रोक दें।"
+        elif humidity_now < 40 and temp_now > 30.0:
+            irrigation_advice = "कम नमी और शुष्क मौसम है, ड्रिप से नियमित हल्की सिंचाई करें।"
+        else:
+            irrigation_advice = "मिट्टी में सामान्य नमी है, निर्धारित चक्र के अनुसार पानी दें।"
+
+    else: # Marathi ('mr')
+        if spray_flag == "red":
+            spray_reason = f"पावसाची शक्यता किंवा वेगवान वाऱ्यामुळे ({wind_now} किमी/तास) आज औषध फवारणी टाळावी."
+        elif spray_flag == "amber":
+            spray_reason = f"मध्यम वारे ({wind_now} किमी/तास) आहेत; सकाळी किंवा संध्याकाळी शांत वेळी सावध फवारणी करावी."
+        else:
+            spray_reason = "हवामान कोरडे व वारे शांत (<१२ किमी/तास) असल्याने आज फवारणीसाठी अगदी उत्तम वेळ आहे."
+
+        if 18.0 <= soil_temp_now <= 30.0:
+            soil_advice = f"मातीचे पृष्ठभाग तापमान {soil_temp_now}°C आहे — बियाणे पेरणी, अंकुरण व मुळांच्या वाढीसाठी अगदी अनुकूल आहे."
+        elif soil_temp_now < 18.0:
+            soil_advice = f"माती थंड ({soil_temp_now}°C) आहे — पेरणी उबदार सकाळच्या वेळेस करावी."
+        else:
+            soil_advice = f"मातीचे तापमान अधिक ({soil_temp_now}°C) आहे — जमिनीत ओलावा टिकवण्यासाठी आच्छादन वापरावे."
+
+        if rain_today > 5.0:
+            irrigation_advice = "आज पुरेसा पाऊस अपेक्षित असल्याने पाणी देणे पुढे ढकलावे."
+        elif humidity_now < 40 and temp_now > 30.0:
+            irrigation_advice = "कमी आर्द्रता व उष्णतेमुळे हलके सिंचन करावे, तुषार किंवा ठिबक वापरावे."
+        else:
+            irrigation_advice = "जमिनीतील ओलावा तपासून नियमित अंतराने हलके पाणी द्यावे."
+
+    return {
+        "spray_flag": spray_flag,
+        "spray_reason": spray_reason,
+        "soil_advice": soil_advice,
+        "irrigation_advice": irrigation_advice
+    }
+
+def _load_cached_weather(district: str, lang: str = "en") -> Dict[str, Any]:
     d_clean = district.strip().lower()
     cache_file = CACHE_DIR / f"{d_clean}_weather.json"
     if not cache_file.exists():
         cache_file = CACHE_DIR / "nashik_weather.json"
+
+    data = None
     if cache_file.exists():
         try:
             with open(cache_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                data["district"] = d_clean
-                return data
         except Exception as e:
             logger.warning(f"Error reading cache file {cache_file}: {e}")
 
-    # Baseline fallback object if cache file missing
-    return {
-        "district": d_clean,
-        "current": {
-            "temperature_c": 28.5,
-            "soil_temperature_0cm": 24.0,
-            "condition": "Clear Sky / स्वच्छ आकाश",
-            "wind_speed_kmh": 9.5,
-            "humidity_pct": 50,
-            "apparent_temperature_c": 29.0
-        },
-        "forecast_7d": [],
-        "advisory": {
-            "spray_flag": "green",
-            "spray_reason": "हवामान कोरडे व शांत असल्याने आज फवारणीसाठी अनुकूल आहे (Calm dry weather for spraying).",
-            "soil_advice": "मातीचे तापमान (24°C) बियाणे उगवणीसाठी अनुकूल आहे (Soil temp favorable for germination).",
-            "irrigation_advice": "नियमित हलके पाणी द्यावे (Provide regular light irrigation).",
-            "source": "KisanMitra Weather Model (Cached Fallback)"
+    if not data:
+        data = {
+            "district": d_clean,
+            "current": {
+                "temperature_c": 29.5,
+                "apparent_temperature_c": 30.0,
+                "soil_temperature_0cm": 24.0,
+                "wind_speed_kmh": 9.5,
+                "humidity_pct": 50,
+                "precipitation_mm": 0.0,
+                "weather_code": 0
+            },
+            "forecast_7d": []
         }
-    }
+
+    data["district"] = d_clean
+    cur = data.get("current", {})
+    temp_now = float(cur.get("temperature_c", 29.0))
+    wind_now = float(cur.get("wind_speed_kmh", 9.0))
+    humidity_now = int(cur.get("humidity_pct", 50))
+    soil_temp = float(cur.get("soil_temperature_0cm", 24.0))
+    rain_today = float(cur.get("precipitation_mm", 0.0))
+    w_code = int(cur.get("weather_code", 0))
+
+    cur["condition"] = _get_wmo_description(w_code, lang)
+    cur["condition_en"] = _get_wmo_description(w_code, "en")
+    cur["condition_hi"] = _get_wmo_description(w_code, "hi")
+
+    spray_flag = "red" if (rain_today > 1.0 or wind_now > 20.0) else "amber" if wind_now > 12.0 else "green"
+    adv = _build_advisory(spray_flag, wind_now, rain_today, soil_temp, humidity_now, temp_now, lang)
+    adv["source"] = "KisanMitra Meteorological Model"
+    data["advisory"] = adv
+
+    return data
 
 def _save_cached_weather(district: str, data: Dict[str, Any]) -> None:
     try:
@@ -95,15 +191,14 @@ def _save_cached_weather(district: str, data: Dict[str, Any]) -> None:
     except Exception as e:
         logger.debug(f"Unable to write weather cache for {district}: {e}")
 
-def get_weather_forecast(district: str = "nashik") -> Dict[str, Any]:
+def get_weather_forecast(district: str = "nashik", lang: str = "en") -> Dict[str, Any]:
     """
     Fetches live weather & soil temperature forecast from Open-Meteo API
-    (hourly=temperature_2m,soil_temperature_0cm) with cached fallback.
-    Computes agricultural safety windows (spray condition, soil sowing feasibility, irrigation).
+    with cached fallback, returning 100% localized advisories for the requested language.
     """
     d_clean = district.strip().lower() if district else "nashik"
     if os.environ.get("USE_CACHE", "false").lower() in ("true", "1", "yes"):
-        return _load_cached_weather(d_clean)
+        return _load_cached_weather(d_clean, lang=lang)
 
     lat, lon = get_district_coordinates(d_clean)
     url = (
@@ -129,45 +224,19 @@ def get_weather_forecast(district: str = "nashik") -> Dict[str, Any]:
             apparent_temp = float(current.get("apparent_temperature", temp_now))
             weather_code = int(current.get("weather_code", 0))
 
-            # Soil temperature at 0cm (surface layer crucial for seed germination & seedling vigor)
             soil_temps = hourly.get("soil_temperature_0cm", [])
             soil_temp_now = float(soil_temps[0]) if soil_temps else round(temp_now - 1.5, 1)
 
-            # Daily precipitation for today
             rain_today = 0.0
             if daily.get("precipitation_sum"):
                 rain_today = float(daily["precipitation_sum"][0])
 
-            # 1. Compute Spray Flag (green / amber / red)
-            if rain_today > 1.0 or wind_now > 20.0:
-                spray_flag = "red"
-                spray_reason = "पावसाची शक्यता किंवा वेगवान वाऱ्यामुळे (>20 km/h) आज औषध फवारणी टाळावी (Avoid spray due to rain or strong wind)."
-            elif wind_now > 12.0:
-                spray_flag = "amber"
-                spray_reason = "मध्यम वारे (12-20 km/h) आहेत; फवारणी सावधगिरीने सकाळी किंवा संध्याकाळी शांत वेळी करावी (Moderate wind; spray during calm morning/evening)."
-            else:
-                spray_flag = "green"
-                spray_reason = "हवामान कोरडे व वारे शांत (<12 km/h) असल्याने आज फवारणीसाठी अगदी उत्तम वेळ आहे (Ideal calm dry weather for spraying)."
+            spray_flag = "red" if (rain_today > 1.0 or wind_now > 20.0) else "amber" if wind_now > 12.0 else "green"
+            advisory_dict = _build_advisory(spray_flag, wind_now, rain_today, soil_temp_now, humidity_now, temp_now, lang)
+            advisory_dict["source"] = "Open-Meteo API (Live)"
 
-            # 2. Compute Soil Condition & Sowing Advisory based on soil_temperature_0cm
-            if 18.0 <= soil_temp_now <= 30.0:
-                soil_advice = f"मातीचे पृष्ठभाग तापमान {soil_temp_now}°C आहे — बियाणे पेरणी, अंकुरण व मुळांच्या वाढीसाठी अगदी अनुकूल आहे (Optimal soil temp for sowing)."
-            elif soil_temp_now < 18.0:
-                soil_advice = f"माती थंड ({soil_temp_now}°C) आहे — पेरणी उबदार सकाळच्या वेळेस करावी (Soil is cool; sow during warm morning hours)."
-            else:
-                soil_advice = f"मातीचे तापमान अधिक ({soil_temp_now}°C) आहे — जमिनीत ओलावा टिकवण्यासाठी सेंद्रिय आच्छादन (mulching) वापरावे (Soil warm; mulch to preserve moisture)."
+            condition_desc = _get_wmo_description(weather_code, lang)
 
-            # 3. Compute Irrigation Advice
-            if rain_today > 5.0:
-                irrigation_advice = "आज पुरेसा पाऊस अपेक्षित असल्याने पाणी देणे पुढे ढकलावे (Rain expected, postpone irrigation)."
-            elif humidity_now < 40 and temp_now > 30.0:
-                irrigation_advice = "कमी आर्द्रता व उष्णतेमुळे हलके सिंचन करावे, तुषार किंवा ठिबक वापरावे (Low humidity; provide drip irrigation)."
-            else:
-                irrigation_advice = "जमिनीतील ओलावा तपासून नियमित अंतराने हलके पाणी द्यावे (Provide standard light irrigation)."
-
-            condition_desc = _get_wmo_description(weather_code, "mr")
-
-            # 4. Build 7-day forecast summary
             forecast_7d: List[Dict[str, Any]] = []
             daily_times = daily.get("time", [])
             max_temps = daily.get("temperature_2m_max", [])
@@ -184,7 +253,7 @@ def get_weather_forecast(district: str = "nashik") -> Dict[str, Any]:
                     "temp_min": min_temps[i] if i < len(min_temps) else temp_now - 8,
                     "rain_mm": rains[i] if i < len(rains) else 0.0,
                     "wind_max_kmh": winds[i] if i < len(winds) else wind_now,
-                    "condition": _get_wmo_description(codes[i] if i < len(codes) else 0, "en")
+                    "condition": _get_wmo_description(codes[i] if i < len(codes) else 0, lang)
                 })
 
             result = {
@@ -200,22 +269,16 @@ def get_weather_forecast(district: str = "nashik") -> Dict[str, Any]:
                     "condition_hi": _get_wmo_description(weather_code, "hi"),
                     "wind_speed_kmh": wind_now,
                     "humidity_pct": humidity_now,
-                    "precipitation_mm": rain_today
+                    "precipitation_mm": rain_today,
+                    "weather_code": weather_code
                 },
                 "forecast_7d": forecast_7d,
-                "advisory": {
-                    "spray_flag": spray_flag,
-                    "spray_reason": spray_reason,
-                    "soil_advice": soil_advice,
-                    "irrigation_advice": irrigation_advice,
-                    "source": "Open-Meteo API (Live)"
-                }
+                "advisory": advisory_dict
             }
 
-            # Cache the successful live result
             _save_cached_weather(d_clean, result)
             return result
     except Exception as e:
         logger.warning(f"Open-Meteo live API call failed for {d_clean} ({e}); serving cached fallback.")
 
-    return _load_cached_weather(d_clean)
+    return _load_cached_weather(d_clean, lang=lang)

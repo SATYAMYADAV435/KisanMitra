@@ -24,14 +24,28 @@ def run_land_agent(profile: FarmerProfile, crop: Optional[str] = None) -> AgentR
     soils = profile.soil_type or ", ".join(info.get("typical_soils", ["medium_black"]))
     rainfall = info.get("annual_rainfall_mm", 700)
     zone = info.get("climate_zone", "Transition Zone")
-    farm_name = profile.farm_name or "तुमची शेती"
+    lang = profile.language or "mr"
+    farm_name = profile.farm_name or ("Your Farm" if lang == "en" else "आपका खेत" if lang == "hi" else "तुमची शेती")
     soil_ph = profile.soil_ph or "6.8"
 
-    finding = (
-        f"{farm_name} ({district.capitalize()}): जमिनीचा प्रकार '{soils.replace('_', ' ')}' व pH {soil_ph} आहे. "
-        f"पावसाचे प्रमाण {rainfall} मिमी असून जमीन रब्बी पिकांसाठी अनुकूल आहे. "
-        f"(हे प्रातिनिधिक विश्लेषण आहे, सॉईल टेस्ट कार्ड तपासा)."
-    )
+    if lang == "en":
+        finding = (
+            f"{farm_name} ({district.capitalize()}): Soil is '{soils.replace('_', ' ')}' with pH {soil_ph}. "
+            f"Annual rainfall is {rainfall} mm, suitable for rabi cropping under irrigation. "
+            f"(Indicative analysis, verify with soil health card)."
+        )
+    elif lang == "hi":
+        finding = (
+            f"{farm_name} ({district.capitalize()}): मिट्टी का प्रकार '{soils.replace('_', ' ')}' व pH {soil_ph} है। "
+            f"वार्षिक वर्षा {rainfall} मिमी है, रबी फसलों के लिए उपयुक्त है। "
+            f"(यह प्रातिनिधिक विश्लेषण है, सॉयल टेस्ट कार्ड जांचें)।"
+        )
+    else:
+        finding = (
+            f"{farm_name} ({district.capitalize()}): जमिनीचा प्रकार '{soils.replace('_', ' ')}' व pH {soil_ph} आहे. "
+            f"पावसाचे प्रमाण {rainfall} मिमी असून जमीन रब्बी पिकांसाठी अनुकूल आहे. "
+            f"(हे प्रातिनिधिक विश्लेषण आहे, सॉईल टेस्ट कार्ड तपासा)."
+        )
 
     evidence = [
         f"Farm: {farm_name}",

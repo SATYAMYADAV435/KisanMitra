@@ -9,7 +9,8 @@ from backend.tools.weather_tool import get_weather_forecast
 
 def run_weather_agent(profile: FarmerProfile, crop: Optional[str] = None) -> AgentResult:
     district = profile.district or "nashik"
-    forecast = get_weather_forecast(district)
+    lang = profile.language or "mr"
+    forecast = get_weather_forecast(district, lang=lang)
 
     advisory = forecast.get("advisory", {})
     current = forecast.get("current", {})

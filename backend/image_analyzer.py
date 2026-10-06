@@ -253,6 +253,118 @@ def _domain_agricultural_diagnosis(crop: str, stage: str, district: str, image_d
                 "disclaimer": "प्रातिनिधिक वनस्पती रोग निदान. औषध फवारणी विद्यापीठ शिफारशीनुसारच करावी."
             }
 
+    elif "wheat" in crop or "गहू" in crop or "गेहूं" in crop:
+        if lang == "en":
+            return {
+                "crop_name": "Wheat Crop",
+                "condition": "Foliar Rust / Leaf Blight Symptoms",
+                "risk_level": "moderate",
+                "symptoms": [
+                    "Yellowish orange pustules arranged linearly on upper leaf surface.",
+                    "Reduced photosynthetic area causing light chlorosis.",
+                    "Foliar moisture in early morning accelerating fungal spread."
+                ],
+                "recommended_actions": [
+                    "1. Spray Propiconazole 25% EC @ 1 ml per liter of water at first sign of yellow rust.",
+                    "2. Avoid excessive irrigation that leaves standing water in root zones.",
+                    "3. Apply recommended potash to improve plant disease tolerance."
+                ],
+                "confidence_pct": 87,
+                "disclaimer": "Indicative diagnostic advisory based on visible image symptoms. Consult local KVK for lab confirmation."
+            }
+        elif lang == "hi":
+            return {
+                "crop_name": "गेहूं की फसल",
+                "condition": "पीला रतुआ / पत्ती झुलसा रोग लक्षण",
+                "risk_level": "moderate",
+                "symptoms": [
+                    "पत्तियों की ऊपरी सतह पर पीले-नारंगी रंग की धारियां व फफोले दिखाई देना।",
+                    "संक्रमित पत्तियों का पीला पड़कर सूखना।",
+                    "सुबह के समय अधिक ओस और ठंडी हवा से फैलाव में तेजी।"
+                ],
+                "recommended_actions": [
+                    "1. प्रोपिकोनाजोल (Propiconazole 25% EC) 1 मिली प्रति लीटर पानी में मिलाकर छिड़कें।",
+                    "2. खेत में अत्यधिक पानी जमा न होने दें और संतुलित पोटाश खाद दें।",
+                    "3. रोग प्रतिरोधी उन्नत किस्मों की ही पहचान रखें।"
+                ],
+                "confidence_pct": 87,
+                "disclaimer": "प्रातिनिधिक विश्लेषण। गंभीर प्रकोप होने पर नजदीकी कृषि विज्ञान केंद्र (KVK) से संपर्क करें।"
+            }
+        else:
+            return {
+                "crop_name": "गहू पीक",
+                "condition": "तांबेरा किंवा पानांवरील करपा लक्षणे",
+                "risk_level": "moderate",
+                "symptoms": [
+                    "पानांच्या वरच्या भागावर पिवळसर-तपकिरी रंगाचे लहान ठिपके व पट्टे.",
+                    "हरितद्रव्याचे प्रमाण घटल्याने पाने पिवळी पडणे.",
+                    "थंड व दमट हवेत बुरशीचा प्रादुर्भाव वाढतो."
+                ],
+                "recommended_actions": [
+                    "१. प्रोपिकोनाझोल (Propiconazole 25% EC) १ मिली प्रति लिटर पाण्यात मिसळून फवारा.",
+                    "२. शेतात गरजेपेक्षा जास्त पाणी साचू देऊ नका.",
+                    "३. पिकाच्या प्रतिकारशक्तीसाठी शिफारशीत पालाश खताचा वापर करा."
+                ],
+                "confidence_pct": 87,
+                "disclaimer": "प्रातिनिधिक वनस्पती रोग निदान. औषध फवारणी तज्ज्ञांच्या सल्ल्याने करावी."
+            }
+
+    elif "gram" in crop or "chana" in crop or "हरभरा" in crop or "चना" in crop:
+        if lang == "en":
+            return {
+                "crop_name": "Gram / Chickpea",
+                "condition": "Pod Borer (Helicoverpa armigera) Foliage Damage",
+                "risk_level": "moderate",
+                "symptoms": [
+                    "Irregular chewed holes on tender leaves and young branch tips.",
+                    "Presence of green or brownish caterpillar frass on lower foliage.",
+                    "Webbing or wilting in localized patches."
+                ],
+                "recommended_actions": [
+                    "1. Install 5 pheromone traps per acre for early pest monitoring.",
+                    "2. Spray 5% Neem Seed Kernel Extract (NSKE) or Chlorantraniliprole @ 0.3 ml/L water.",
+                    "3. Plant bird perches (T-shaped sticks) in the field for natural predation."
+                ],
+                "confidence_pct": 89,
+                "disclaimer": "Indicative diagnostic advisory based on visible image symptoms. Consult local KVK for lab confirmation."
+            }
+        elif lang == "hi":
+            return {
+                "crop_name": "चना / छोला फसल",
+                "condition": "घाटी छेदक इल्ली (Pod Borer) का प्रकोप",
+                "risk_level": "moderate",
+                "symptoms": [
+                    "कोमल पत्तियों और शाखाओं के सिरों पर कटे हुए छेद दिखना।",
+                    "पौधों पर इल्ली का मल और खाए हुए पत्तों के अवशेष।",
+                    "फूल और कलियों पर कीट का सीधा प्रभाव।"
+                ],
+                "recommended_actions": [
+                    "1. खेत में प्रति एकड़ 5 फेरोमोन ट्रैप लगाएं।",
+                    "2. नीम बीज अर्क (NSKE 5%) अथवा अनुशंसित कीटनाशक का हल्का छिड़काव करें।",
+                    "3. खेत में 'T' आकार की पक्षी बैठकी (Bird Perches) लगाएं ताकि पक्षी इल्लियों को खा सकें।"
+                ],
+                "confidence_pct": 89,
+                "disclaimer": "प्रातिनिधिक विश्लेषण। कीटनाशक छिड़काव के समय सुरक्षा नियमों का पालन करें।"
+            }
+        else:
+            return {
+                "crop_name": "हरभरा पीक",
+                "condition": "घाटे अळी प्रादुर्भाव व पानांचे नुकसान",
+                "risk_level": "moderate",
+                "symptoms": [
+                    "कोवळ्या पानांवर आणि शेंड्यांवर अनियमित छिद्रे पडलेली असणे.",
+                    "पानांवर अळीची विष्ठा व कुरतडलेली पाने दिसणे.",
+                    "फुलोरा आणि घाटे भरण्याच्या काळात प्रादुर्भाव वाढतो."
+                ],
+                "recommended_actions": [
+                    "१. शेतात एकरी ५ कामगंध सापळे (Pheromone Traps) लावा.",
+                    "२. ५% निंबोळी अर्क किंवा शिफारशीत कीटकनाशक प्रति लिटर पाण्यात फवारा.",
+                    "३. शेतात पक्षी थांबण्यासाठी इंग्रजी 'T' आकाराचे पक्षी थांबे लावा."
+                ],
+                "confidence_pct": 89,
+                "disclaimer": "प्रातिनिधिक निदान. औषध फवारणी विद्यापीठ शिफारशीनुसारच करावी."
+            }
+
     else: # Default Healthy / Minor Stress
         if lang == "en":
             return {
@@ -274,7 +386,7 @@ def _domain_agricultural_diagnosis(crop: str, stage: str, district: str, image_d
             }
         elif lang == "hi":
             return {
-                "crop_name": f"{crop.capitalize()} की पत्ती",
+                "crop_name": f"{crop.capitalize()} की फसल",
                 "condition": "स्वस्थ फसल - हल्का नमी का तनाव",
                 "risk_level": "low",
                 "symptoms": [
@@ -292,8 +404,8 @@ def _domain_agricultural_diagnosis(crop: str, stage: str, district: str, image_d
             }
         else:
             return {
-                "crop_name": f"{crop.capitalize()} (पीक पान)",
-                "condition": "Overall Good Condition with Minor Moisture Stress (सर्वसाधारण स्थिती उत्तम)",
+                "crop_name": f"{crop.capitalize()} पीक",
+                "condition": "सर्वसाधारण स्थिती उत्तम - हलका पाण्याचा ताण",
                 "risk_level": "low",
                 "symptoms": [
                     "पानांवर गंभीर रोग किंवा किडीचे डाग नाहीत.",

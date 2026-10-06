@@ -7,6 +7,7 @@ and cached response fallback per ARCHITECTURE.md §7.
 import json
 import logging
 import os
+import re
 import time
 from typing import Any, Dict, Optional
 
@@ -198,11 +199,11 @@ def _cached_or_simulated_llm(prompt: str, system_prompt: str) -> str:
     # 2. Supervisor requests (expecting AnswerCard JSON)
     # Parse target language and intent from prompt
     target_lang = "mr"
-    if "target language: hi" in p_lower or "language=hi" in p_lower:
+    if "target language: hi" in p_lower or "language=hi" in p_lower or "language: hi" in p_lower:
         target_lang = "hi"
-    elif "target language: en" in p_lower or "language=en" in p_lower:
+    elif "target language: en" in p_lower or "language=en" in p_lower or "language: en" in p_lower:
         target_lang = "en"
-    elif "target language: mr" in p_lower or "language=mr" in p_lower:
+    elif "target language: mr" in p_lower or "language=mr" in p_lower or "language: mr" in p_lower:
         target_lang = "mr"
 
     intent = "what_to_grow"
@@ -215,15 +216,87 @@ def _cached_or_simulated_llm(prompt: str, system_prompt: str) -> str:
     elif "intent: unknown" in p_lower:
         intent = "unknown"
 
-    # Multi-language and multi-intent simulated cards
+    # Parse district dynamically from prompt
+    from backend.tools.regions import get_all_districts, get_district_info
+    from backend.tools.weather_tool import get_weather_forecast
+    from backend.tools.mandi import get_latest_price
+
+    district_raw = "nashik"
+    m_dist = re.search(r"district=([a-zA-Z0-9_\-\s]+?)(?:,|$|\n)", prompt, re.IGNORECASE)
+    if m_dist:
+        district_raw = m_dist.group(1).strip().lower()
+    else:
+        for d in get_all_districts():
+            d_id = d.get("id", "")
+            d_en = (d.get("name", {}).get("en") or "").lower()
+            if d_id in p_lower or (d_en and d_en in p_lower):
+                district_raw = d_id
+                break
+
+    # Parse crop dynamically
+    crop_raw = "onion"
+    m_crop = re.search(r"(?:crop mentioned:\s*|current crop=)([a-zA-Z0-9_\-]+)", prompt, re.IGNORECASE)
+    if m_crop and m_crop.group(1).lower() not in ("general", "none", ""):
+        crop_raw = m_crop.group(1).strip().lower()
+
+    # Look up district info
+    d_info = get_district_info(district_raw)
+    dist_en = d_info.get("name", {}).get("en", district_raw.capitalize()) if d_info else district_raw.capitalize()
+    dist_hi = d_info.get("name", {}).get("hi", dist_en) if d_info else dist_en
+    dist_mr = d_info.get("name", {}).get("mr", dist_en) if d_info else dist_en
+
+    primary_markets = (d_info.get("primary_markets") or ["APMC Market"]) if d_info else ["APMC Market"]
+    mkt_display = " & ".join(primary_markets[:2])
+
+    # Crop names dictionary for pure localization
+    crop_names = {
+        "onion": {"en": "Onion", "hi": "प्याज", "mr": "कांदा"},
+        "wheat": {"en": "Wheat", "hi": "गेहूं", "mr": "गहू"},
+        "gram": {"en": "Gram (Chickpea)", "hi": "चना", "mr": "हरभरा"},
+        "chana": {"en": "Gram (Chickpea)", "hi": "चना", "mr": "हरभरा"},
+        "tomato": {"en": "Tomato", "hi": "टमाटर", "mr": "टोमॅटो"},
+        "cotton": {"en": "Cotton", "hi": "कपास", "mr": "कापूस"},
+        "rabi_jowar": {"en": "Rabi Jowar", "hi": "रबी ज्वार", "mr": "रब्बी ज्वारी"},
+        "safflower": {"en": "Safflower", "hi": "कुसुम", "mr": "करडई"},
+        "orange": {"en": "Orange", "hi": "संतरा", "mr": "संत्री"},
+        "sugarcane": {"en": "Sugarcane", "hi": "गन्ना", "mr": "ऊस"},
+        "mustard": {"en": "Mustard", "hi": "सरसों", "mr": "मोहरी"},
+        "cumin": {"en": "Cumin", "hi": "जीरा", "mr": "जिरे"}
+    }
+    active_crop_name = crop_names.get(crop_raw, {}).get(target_lang, crop_raw.capitalize())
+
+    # Get dynamic weather for that district
+    w_res = get_weather_forecast(district_raw, lang=target_lang)
+    w_cur = w_res.get("current", {})
+    temp_val = int(w_cur.get("temperature_c", 29))
+    wind_val = int(w_cur.get("wind_speed_kmh", 9))
+    cond_val = w_cur.get("condition", "Clear Sky" if target_lang == "en" else "साफ आसमान" if target_lang == "hi" else "स्वच्छ आकाश")
+    spray_flag = w_res.get("advisory", {}).get("spray_flag", "green")
+
+    # Get dynamic price for that crop and district
+    price_info = get_latest_price(crop_raw, district_raw)
+    m_price = price_info.get("modal_price", 1850)
+    min_price = price_info.get("min_price", 1300)
+    max_price = price_info.get("max_price", 2400)
+    mkt_active = price_info.get("market", primary_markets[0])
+
+    # District major crops
+    dist_crops = d_info.get("major_rabi_crops", ["onion", "gram"]) if d_info else ["onion", "gram"]
+    top_c1 = dist_crops[0] if len(dist_crops) > 0 else "onion"
+    top_c2 = dist_crops[1] if len(dist_crops) > 1 else "gram"
+    c1_name = crop_names.get(top_c1, {}).get(target_lang, top_c1.capitalize())
+    c2_name = crop_names.get(top_c2, {}).get(target_lang, top_c2.capitalize())
+    c1_gross = 140000 if "onion" in top_c1 else 75000 if "gram" in top_c1 else 65000
+
+    # Multi-language and multi-intent dynamic cards
     if target_lang == "hi":
         if intent == "weather_today":
             card = {
-                "title": "मौसम एवं छिड़काव सलाह",
+                "title": f"मौसम एवं छिड़काव सलाह ({dist_hi})",
                 "summary_lines": [
-                    "नासिक क्षेत्र में आज मौसम साफ और शुष्क रहेगा।",
-                    "अधिकतम तापमान 29 डिग्री और हवा की गति 9 किमी प्रति घंटा रहेगी।",
-                    "आज दोपहर कीटनाशक छिड़काव के लिए मौसम पूरी तरह अनुकूल है।"
+                    f"{dist_hi} क्षेत्र में आज मौसम {cond_val} और शुष्क रहेगा।",
+                    f"अधिकतम तापमान {temp_val}°C और हवा की गति {wind_val} किमी/घंटा दर्ज है।",
+                    f"आज {'कीटनाशक छिड़काव के लिए मौसम पूरी तरह अनुकूल है।' if spray_flag == 'green' else 'हवा के रुख को देखकर ही सावधानीपूर्वक छिड़काव करें।'}"
                 ],
                 "steps": [
                     "1. हवा की गति कम होने पर सुबह 11 बजे से पहले या दोपहर 3 बजे के बाद छिड़काव करें।",
@@ -232,43 +305,43 @@ def _cached_or_simulated_llm(prompt: str, system_prompt: str) -> str:
                 ],
                 "labels": ["मौसम पूर्वानुमान", "अनुमानित जानकारी"],
                 "sources": ["भारतीय मौसम विभाग (IMD)", "कृषि विज्ञान केंद्र (KVK)"],
-                "speak_text": "आज नासिक में मौसम साफ है और हवा की गति धीमी है। आप आज खेत में छिड़काव कर सकते हैं।",
+                "speak_text": f"आज {dist_hi} में मौसम {cond_val} है और हवा की गति {wind_val} किमी प्रति घंटा है। खेत में काम के लिए मौसम अनुकूल है।",
                 "language": "hi"
             }
         elif intent == "prices":
             card = {
-                "title": "मंडी भाव (नासिक मंडी)",
+                "title": f"मंडी भाव ({dist_hi} - {mkt_active})",
                 "summary_lines": [
-                    "नासिक और लासलगांव मंडी में प्याज का औसत भाव ₹1,850 प्रति क्विंटल है।",
-                    "न्यूनतम भाव ₹1,200 और अधिकतम भाव ₹2,400 प्रति क्विंटल दर्ज किया गया।",
-                    "मांग अच्छी होने के कारण अगले हफ्ते भाव स्थिर रहने की संभावना है।"
+                    f"{mkt_active} मंडी में {active_crop_name} का औसत भाव ₹{m_price:,} प्रति क्विंटल है।",
+                    f"न्यूनतम भाव ₹{min_price:,} और अधिकतम भाव ₹{max_price:,} प्रति क्विंटल दर्ज किया गया।",
+                    f"मांग अच्छी होने के कारण {dist_hi} क्षेत्र में भाव स्थिर रहने की संभावना है।"
                 ],
                 "steps": [
-                    "1. प्याज की अच्छी तरह छंटाई करके ही मंडी में बिक्री के लिए ले जाएं।",
-                    "2. सूखा और अच्छी गुणवत्ता वाला प्याज ऊंचे दामों पर बिकता है।",
+                    "1. फसल की अच्छी तरह छंटाई और ग्रेडिंग करके ही मंडी में बिक्री के लिए ले जाएं।",
+                    "2. सूखा और अच्छी गुणवत्ता वाला माल ऊंचे दामों पर बिकता है।",
                     "3. स्थानीय कृषि उपज मंडी समिति के दैनिक भाव पर नजर रखें।"
                 ],
                 "labels": ["आधिकारिक मंडी भाव", "अनुमानित जानकारी"],
-                "sources": ["महाराष्ट्र राज्य कृषि विपणन बोर्ड (MSAMB)"],
-                "speak_text": "नासिक मंडी में आज प्याज का औसत भाव 1850 रुपये प्रति क्विंटल है। बाजार में भाव स्थिर रहने की उम्मीद है।",
+                "sources": ["महाराष्ट्र राज्य कृषि विपणन बोर्ड (MSAMB)", f"{mkt_active} मंडी"],
+                "speak_text": f"{mkt_active} मंडी में आज {active_crop_name} का औसत भाव {m_price} रुपये प्रति क्विंटल है। बाजार में भाव स्थिर रहने की उम्मीद है।",
                 "language": "hi"
             }
         elif intent == "how_to_grow":
             card = {
-                "title": "फसल प्रबंधन मार्गदर्शिका (रबी प्याज)",
+                "title": f"फसल प्रबंधन मार्गदर्शिका ({active_crop_name})",
                 "summary_lines": [
-                    "रबी प्याज की रोपाई अक्टूबर से नवंबर के बीच पूरी करें।",
-                    "मध्यम से भारी और जल निकासी वाली उपजाऊ मिट्टी का चयन करें।",
-                    "जैविक खाद और अनुशंसित उर्वरकों का संतुलित उपयोग करें।"
+                    f"{dist_hi} क्षेत्र में {active_crop_name} की सफल खेती के लिए संपूर्ण मार्गदर्शन।",
+                    "उपजाऊ और जल निकासी वाली मिट्टी का चयन कर सड़ी गोबर की खाद मिलाएं।",
+                    "संतुलित पोषण और आवश्यकतानुसार ड्रिप सिंचाई का उपयोग करें।"
                 ],
                 "steps": [
-                    "1. प्रति एकड़ 10 से 12 टन सड़ी हुई गोबर की खाद मिट्टी में मिलाएं।",
-                    "2. क्यारियों में 15 गुणा 10 सेमी की दूरी पर स्वस्थ पौधे लगाएं।",
-                    "3. खरपतवार नियंत्रण के लिए रोपाई के बाद हल्की निराई-गुड़ाई करें।"
+                    "1. खेत की तैयारी के समय प्रति एकड़ 10-12 टन सड़ी गोबर खाद मिलाएं।",
+                    "2. अनुशंसित दूरी पर बुवाई या रोपाई करें और स्वस्थ बीजों का उपयोग करें।",
+                    "3. खरपतवार नियंत्रण और कीट प्रबंधन समय पर पूरा करें।"
                 ],
                 "labels": ["फसल सलाह", "अनुशंसित जानकारी"],
-                "sources": ["महात्मा फुले कृषि विद्यापीठ (MPKV) राहुरी"],
-                "speak_text": "रबी प्याज की खेती के लिए मध्यम से भारी मिट्टी और सही पोषण प्रबंधन जरूरी है। समय पर रोपाई पूरी करें।",
+                "sources": ["कृषि विश्वविद्यालय", "कृषि विज्ञान केंद्र (KVK)"],
+                "speak_text": f"{active_crop_name} की खेती के लिए सही पोषण और समय पर देखभाल जरूरी है। विश्वविद्यालय की सिफारिशों का पालन करें।",
                 "language": "hi"
             }
         elif intent == "unknown":
@@ -291,20 +364,20 @@ def _cached_or_simulated_llm(prompt: str, system_prompt: str) -> str:
             }
         else: # what_to_grow
             card = {
-                "title": "फसल सलाह (नासिक रबी मौसम)",
+                "title": f"फसल सलाह ({dist_hi} रबी मौसम)",
                 "summary_lines": [
-                    "रबी मौसम के लिए प्याज और चना सबसे अधिक लाभकारी फसलें हैं।",
-                    "प्याज से लगभग ₹1,40,000 प्रति एकड़ अनुमानित आय संभावित है।",
-                    "मध्यम से काली मिट्टी में कुएं के पानी पर अच्छी पैदावार मिलती है।"
+                    f"{dist_hi} क्षेत्र के लिए {c1_name} और {c2_name} सबसे अधिक लाभकारी फसलें हैं।",
+                    f"{c1_name} से लगभग ₹{c1_gross:,} प्रति एकड़ अनुमानित आय संभावित है।",
+                    "स्थानीय मिट्टी और उपलब्ध सिंचाई के आधार पर यह फसलें सर्वाधिक उपयुक्त हैं।"
                 ],
                 "steps": [
-                    "1. क्यारियों में 45 से 50 दिन के स्वस्थ पौधे लगाएं।",
-                    "2. ट्राइकोडर्मा से प्रति किलो बीज पर 5 ग्राम उपचार करके ही बुवाई करें।",
-                    "3. ड्रिप सिंचाई द्वारा सही मात्रा में पानी और खाद दें।"
+                    "1. खेत की जुताई कर जल निकासी के अनुसार क्यारियां या मेड़ तैयार करें।",
+                    "2. बीजजनित रोगों से बचाव हेतु ट्राइकोडर्मा से बीज उपचार अवश्य करें।",
+                    "3. विश्वविद्यालय की सिफारिश अनुसार संतुलित जैविक व रासायनिक खाद दें।"
                 ],
                 "labels": ["अनुमानित जानकारी", "लागत पूर्व आय", "मौसम के अनुसार"],
-                "sources": ["महात्मा फुले कृषि विद्यापीठ (MPKV) राहुरी"],
-                "speak_text": "नासिक जिले के लिए रबी प्याज और चना सबसे अच्छे विकल्प हैं। प्याज के अच्छे दाम मिलने की उम्मीद है। अधिक जानकारी के लिए नजदीकी कृषि विज्ञान केंद्र से संपर्क करें।",
+                "sources": ["कृषि विश्वविद्यालय", "कृषि विज्ञान केंद्र (KVK)"],
+                "speak_text": f"{dist_hi} जिले के लिए रबी मौसम में {c1_name} और {c2_name} सबसे अच्छे विकल्प हैं। अधिक जानकारी के लिए नजदीकी केवीके से संपर्क करें।",
                 "language": "hi"
             }
         return json.dumps(card, ensure_ascii=False)
@@ -312,11 +385,11 @@ def _cached_or_simulated_llm(prompt: str, system_prompt: str) -> str:
     elif target_lang == "en":
         if intent == "weather_today":
             card = {
-                "title": "Weather & Spray Advisory",
+                "title": f"Weather & Spray Advisory ({dist_en})",
                 "summary_lines": [
-                    "Clear and dry weather expected across Nashik today.",
-                    "Max temperature 29°C with wind speed around 9 km/h.",
-                    "Weather conditions are favorable for spraying this afternoon."
+                    f"Current weather across {dist_en} is {cond_val}.",
+                    f"Max temperature {temp_val}°C with wind speed around {wind_val} km/h.",
+                    f"Weather conditions are {'favorable' if spray_flag == 'green' else 'cautionary'} for spraying this afternoon."
                 ],
                 "steps": [
                     "1. Spray before 11 AM or after 3 PM when winds are gentle.",
@@ -325,43 +398,43 @@ def _cached_or_simulated_llm(prompt: str, system_prompt: str) -> str:
                 ],
                 "labels": ["Forecast Indicative", "Advisory Status"],
                 "sources": ["India Meteorological Department (IMD)", "Krishi Vigyan Kendra (KVK)"],
-                "speak_text": "Today the weather in Nashik is clear with low wind speeds. You can safely spray in the field this afternoon.",
+                "speak_text": f"Today in {dist_en}, weather is {cond_val} with {wind_val} km/h wind. Conditions are {'favorable' if spray_flag == 'green' else 'cautionary'} for farm spraying.",
                 "language": "en"
             }
         elif intent == "prices":
             card = {
-                "title": "Mandi Market Prices (Nashik)",
+                "title": f"Mandi Market Prices ({dist_en} - {mkt_active})",
                 "summary_lines": [
-                    "Modal price for Onion in Nashik & Lasalgaon is ₹1,850 per quintal.",
-                    "Minimum price ₹1,200 and maximum price ₹2,400 recorded.",
-                    "Market sentiment is steady with moderate upward trend."
+                    f"Modal price for {active_crop_name} in {mkt_active} is ₹{m_price:,} per quintal.",
+                    f"Minimum price ₹{min_price:,} and maximum price ₹{max_price:,} recorded today.",
+                    f"Market demand is steady across {dist_en} APMC trading yards."
                 ],
                 "steps": [
-                    "1. Grade onions by size and quality before taking to the mandi.",
+                    "1. Grade produce by size and moisture before transport to mandi.",
                     "2. Ensure proper curing and drying to secure peak market rates.",
-                    "3. Track daily APMC arrivals and rates."
+                    "3. Track daily APMC arrivals and e-NAM rates before selling."
                 ],
                 "labels": ["Official APMC Rates", "Representative Data"],
-                "sources": ["Maharashtra State Agricultural Marketing Board (MSAMB)"],
-                "speak_text": "In Nashik mandi today, onion modal price is 1850 rupees per quintal. Prices are expected to remain steady.",
+                "sources": ["State Agricultural Marketing Board (MSAMB)", f"{mkt_active} APMC"],
+                "speak_text": f"In {mkt_active} mandi today, {active_crop_name} modal price is {m_price} rupees per quintal. Market demand is steady.",
                 "language": "en"
             }
         elif intent == "how_to_grow":
             card = {
-                "title": "Crop Management Guide (Rabi Onion)",
+                "title": f"Crop Management Guide ({active_crop_name})",
                 "summary_lines": [
-                    "Complete rabi onion transplanting between October and November.",
-                    "Select well-drained medium to deep black fertile soil.",
-                    "Apply balanced FYM organic manure and recommended basal fertilizers."
+                    f"Comprehensive package of practices for {active_crop_name} in {dist_en}.",
+                    "Select fertile, well-drained soil and apply balanced decomposed compost.",
+                    "Follow scheduled irrigation and timely integrated pest management."
                 ],
                 "steps": [
                     "1. Incorporate 10-12 tonnes per acre of well-rotted farmyard manure.",
-                    "2. Transplant 45-day seedlings on raised beds at 15x10 cm spacing.",
-                    "3. Carry out light weeding and mulching in the initial 30 days."
+                    "2. Maintain recommended plant spacing and use certified healthy seeds.",
+                    "3. Carry out timely weeding and balanced nutrient application."
                 ],
                 "labels": ["Package of Practices", "University Recommended"],
-                "sources": ["Mahatma Phule Krishi Vidyapeeth (MPKV) Rahuri"],
-                "speak_text": "For rabi onion cultivation, ensure fertile well-drained soil and timely transplantation on raised beds.",
+                "sources": ["State Agricultural University", "Krishi Vigyan Kendra (KVK)"],
+                "speak_text": f"For {active_crop_name} cultivation in {dist_en}, ensure fertile soil preparation and balanced nutrition management.",
                 "language": "en"
             }
         elif intent == "unknown":
@@ -384,20 +457,20 @@ def _cached_or_simulated_llm(prompt: str, system_prompt: str) -> str:
             }
         else: # what_to_grow
             card = {
-                "title": "Crop Advisory (Nashik Rabi Season)",
+                "title": f"Crop Advisory ({dist_en} Rabi Season)",
                 "summary_lines": [
-                    "Rabi Onion and Gram (Chickpea) are top recommendations for your soil.",
-                    "Estimated gross income for Onion is ₹1,40,000 per acre.",
-                    "Requires 110-120 days under well irrigation and medium black soil."
+                    f"{c1_name} and {c2_name} are top recommendations for {dist_en} agro-climatic zone.",
+                    f"Estimated gross income for {c1_name} is ₹{c1_gross:,} per acre under good management.",
+                    "Well suited for local soil conditions and prevailing market demand."
                 ],
                 "steps": [
-                    "1. Prepare raised beds with drip irrigation lines.",
-                    "2. Treat seeds/seedlings with Trichoderma before planting.",
-                    "3. Apply balanced fertilizers based on university guidelines."
+                    "1. Prepare land with proper raised beds or furrows based on drainage.",
+                    "2. Treat seeds with Trichoderma before sowing to prevent root rot.",
+                    "3. Apply balanced basal fertilizer dose per agricultural university guidelines."
                 ],
                 "labels": ["Representative Data", "Gross Income Before Cost", "Seasonal Estimate"],
-                "sources": ["Mahatma Phule Krishi Vidyapeeth (MPKV) Rahuri"],
-                "speak_text": "For Nashik district, Rabi Onion and Gram are your best options. Onion offers attractive returns under well irrigation.",
+                "sources": ["State Agricultural University", "Krishi Vigyan Kendra (KVK)"],
+                "speak_text": f"For {dist_en} district, {c1_name} and {c2_name} are your best rabi options with strong yield potential and steady market demand.",
                 "language": "en"
             }
         return json.dumps(card, ensure_ascii=False)
@@ -405,11 +478,11 @@ def _cached_or_simulated_llm(prompt: str, system_prompt: str) -> str:
     else: # Marathi ('mr')
         if intent == "weather_today":
             card = {
-                "title": "हवामान व फवारणी सल्ला",
+                "title": f"हवामान व फवारणी सल्ला ({dist_mr})",
                 "summary_lines": [
-                    "नाशिक परिसरात आज हवामान स्वच्छ व कोरडे राहील.",
-                    "कमाल तापमान 29 अंश आणि वाऱ्याचा वेग 9 किमी प्रतितास राहील.",
-                    "आज दुपारी कीटकनाशक फवारणीसाठी हवामान अनुकूल आहे."
+                    f"{dist_mr} परिसरात आज हवामान {cond_val} व कोरडे राहील.",
+                    f"कमाल तापमान {temp_val} अंश आणि वाऱ्याचा वेग {wind_val} किमी प्रतितास राहील.",
+                    f"आज {'दुपारी कीटकनाशक फवारणीसाठी हवामान अनुकूल आहे.' if spray_flag == 'green' else 'वाऱ्याचा वेग जास्त असल्याने फवारणी काळजीपूर्वक करा.'}"
                 ],
                 "steps": [
                     "1. वाऱ्याचा वेग कमी असताना सकाळी 11 च्या आधी किंवा दुपारी 3 नंतर फवारणी करा.",
@@ -418,43 +491,43 @@ def _cached_or_simulated_llm(prompt: str, system_prompt: str) -> str:
                 ],
                 "labels": ["हवामान अंदाजानुसार", "प्रातिनिधिक माहिती"],
                 "sources": ["भारतीय हवामान विभाग (IMD)", "कृषी विज्ञान केंद्र (KVK)"],
-                "speak_text": "आज नाशिकमध्ये हवामान स्वच्छ आहे आणि वाऱ्याचा वेग कमी आहे. तुम्ही आज दुपारी शेतात फवारणी करू शकता.",
+                "speak_text": f"आज {dist_mr} मध्ये हवामान {cond_val} असून वाऱ्याचा वेग {wind_val} किमी प्रतितास आहे. फवारणीसाठी परिस्थिती अनुकूल आहे.",
                 "language": "mr"
             }
         elif intent == "prices":
             card = {
-                "title": "बाजारभाव माहिती (नाशिक मंडी)",
+                "title": f"बाजारभाव माहिती ({dist_mr} - {mkt_active})",
                 "summary_lines": [
-                    "नाशिक आणि लासलगाव बाजारात कांद्याला सरासरी ₹1,850 प्रति क्विंटल भाव आहे.",
-                    "किमान भाव ₹1,200 तर कमाल भाव ₹2,400 प्रति क्विंटल नोंदवला गेला.",
-                    "मागणी चांगली असल्याने पुढील आठवड्यात भाव स्थिर किंवा वाढण्याची शक्यता आहे."
+                    f"{mkt_active} बाजारात {active_crop_name} पिकाला सरासरी ₹{m_price:,} प्रति क्विंटल भाव आहे.",
+                    f"किमान भाव ₹{min_price:,} तर कमाल भाव ₹{max_price:,} प्रति क्विंटल नोंदवला गेला.",
+                    f"{dist_mr} जिल्ह्यातील प्रमुख बाजार समित्यांमध्ये मागणी व आवक स्थिर आहे."
                 ],
                 "steps": [
-                    "1. कांदा प्रतवारी करून चांगल्या प्रतीचा माल विक्रीसाठी पाठवा.",
-                    "2. सुका आणि चांगला पोसलेला कांदा चांगल्या दरात विकला जातो.",
+                    "1. मालाची प्रतवारी करून चांगल्या प्रतीचा माल विक्रीसाठी पाठवा.",
+                    "2. सुका आणि चांगला पोसलेला माल चांगल्या दरात विकला जातो.",
                     "3. स्थानिक कृषी उत्पन्न बाजार समितीच्या ताज्या भावावर लक्ष ठेवा."
                 ],
                 "labels": ["अधिकृत बाजारभाव", "प्रातिनिधिक माहिती"],
-                "sources": ["महाराष्ट्र राज्य कृषी पणन मंडळ (MSAMB)"],
-                "speak_text": "नाशिक बाजारात आज कांद्याला सरासरी 1850 रुपये प्रति क्विंटल भाव मिळत आहे. बाजारभाव स्थिर राहण्याची शक्यता आहे.",
+                "sources": ["महाराष्ट्र राज्य कृषी पणन मंडळ (MSAMB)", f"{mkt_active} बाजार समिती"],
+                "speak_text": f"{mkt_active} बाजारात आज {active_crop_name} पिकाला सरासरी {m_price} रुपये प्रति क्विंटल भाव मिळत आहे. बाजारभाव स्थिर राहण्याची शक्यता आहे.",
                 "language": "mr"
             }
         elif intent == "how_to_grow":
             card = {
-                "title": "पीक व्यवस्थापन मार्गदर्शक (रब्बी कांदा)",
+                "title": f"पीक व्यवस्थापन मार्गदर्शक ({active_crop_name})",
                 "summary_lines": [
-                    "रब्बी कांदा लागवड ऑक्टोबर ते नोव्हेंबर दरम्यान पूर्ण करावी.",
-                    "मध्यम ते भारी, पाण्याचा चांगला निचरा होणारी जमीन निवडावी.",
-                    "सेंद्रिय खते आणि शिफारशीत रासायनिक खतांचा योग्य वापर करावा."
+                    f"{dist_mr} भागात {active_crop_name} पिकाच्या भरघोस उत्पादनासाठी एकात्मिक व्यवस्थापन.",
+                    "पाण्याचा उत्तम निचरा होणारी जमीन निवडून भरपूर सेंद्रिय खताचा वापर करा.",
+                    "वेळेवर अन्नद्रव्य व्यवस्थापन आणि किड-रोग नियंत्रण ठेवा."
                 ],
                 "steps": [
-                    "1. एकरी 10 ते 12 टन चांगले कुजलेले शेणखत जमिनीत मिसळा.",
-                    "2. पुनर्लागवड 15 बाय 10 सेंमी अंतरावर सपाट किंवा गादीवाफ्यावर करा.",
-                    "3. तण नियंत्रणासाठी सुरुवातीला हलकी खुरपणी करा."
+                    "1. पूर्वमशागतीच्या वेळी एकरी 10 ते 12 टन चांगले कुजलेले शेणखत मिसळा.",
+                    "2. शिफारशीत अंतरावर लागवड करून प्रमाणित बियाणे वापरा.",
+                    "3. सुरुवातीच्या 30 दिवसांत शेत तणमुक्त ठेवा."
                 ],
                 "labels": ["पीक शिफारस", "विद्यापीठ शिफारशीत"],
                 "sources": ["महात्मा फुले कृषी विद्यापीठ (MPKV) राहुरी"],
-                "speak_text": "रब्बी कांदा लागवडीसाठी मध्यम ते भारी जमीन आणि संतुलित खत व्यवस्थापन आवश्यक आहे. लागवड वेळेवर पूर्ण करा.",
+                "speak_text": f"{active_crop_name} पिकाच्या उत्तम वाढीसाठी सेंद्रिय खते आणि वेळेवर पाणी व्यवस्थापन महत्त्वाचे आहे.",
                 "language": "mr"
             }
         elif intent == "unknown":
@@ -477,20 +550,20 @@ def _cached_or_simulated_llm(prompt: str, system_prompt: str) -> str:
             }
         else: # what_to_grow
             card = {
-                "title": "शेती सल्ला (नाशिक रब्बी हंगाम)",
+                "title": f"शेती सल्ला ({dist_mr} रब्बी हंगाम)",
                 "summary_lines": [
-                    "कांदा आणि हरभरा पिकासाठी सध्या अनुकूल हवामान आहे.",
-                    "नाशिक बाजारात कांद्याला सरासरी ₹1,850 प्रति क्विंटल भाव मिळत आहे.",
-                    "मध्यम ते काळ्या जमिनीत विहिरीच्या पाण्यावर उत्तम उत्पादन शक्य."
+                    f"{dist_mr} भागासाठी {c1_name} आणि {c2_name} ही पिके सध्या सर्वाधिक फायदेशीर आहेत.",
+                    f"{c1_name} पिकातून एकरी सुमारे ₹{c1_gross:,} अंदाजे उत्पन्न अपेक्षित आहे.",
+                    "स्थानिक हवामान आणि जमिनीच्या पोतानुसार ही पिके अत्यंत अनुकूल आहेत."
                 ],
                 "steps": [
-                    "1. रब्बी कांद्यासाठी योग्य गादीवाफे तयार करून रोपांची लागवड करा.",
-                    "2. शिफारशीनुसार ट्रायकोडर्माने बीजप्रक्रिया करूनच पेरणी करा.",
-                    "3. हवामान कोरडे असल्याने हलके पाणी द्या, पाणी साचू देऊ नका."
+                    "1. जमिनीच्या प्रकारानुसार योग्य गादीवाफे किंवा सरी-वरंबा तयार करा.",
+                    "2. पेरणीपूर्वी बुरशीनाशक किंवा ट्रायकोडर्माने बीजप्रक्रिया नक्की करा.",
+                    "3. कृषी विद्यापीठाच्या शिफारशीनुसार संतुलित खतांचा वापर करा."
                 ],
                 "labels": ["प्रातिनिधिक माहिती", "खर्चापूर्वीचे उत्पन्न", "हवामान अंदाजानुसार"],
                 "sources": ["महात्मा फुले कृषी विद्यापीठ (MPKV) राहुरी"],
-                "speak_text": "नमस्कार. नाशिक जिल्ह्यासाठी सध्या रब्बी कांदा आणि हरभरा ही पिके फायदेशीर आहेत. बाजारात कांद्याला चांगला भाव आहे. अधिक माहितीसाठी जवळच्या कृषी विज्ञान केंद्राशी संपर्क साधा.",
+                "speak_text": f"{dist_mr} जिल्ह्यासाठी रब्बी हंगामात {c1_name} आणि {c2_name} ही पिके उत्तम पर्याय आहेत. अधिक माहितीसाठी जवळच्या कृषी विज्ञान केंद्राशी संपर्क साधा.",
                 "language": "mr"
             }
         return json.dumps(card, ensure_ascii=False)

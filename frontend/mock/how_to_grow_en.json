@@ -1,0 +1,22 @@
+{
+  "title": "Crop Cultivation Handbook & POP",
+  "metrics": [
+    { "label": "Planting Window", "value": "Oct 15 - Nov 30" },
+    { "label": "Spacing", "value": "15 × 10 cm" },
+    { "label": "FYM Manure", "value": "10-12 t / acre" }
+  ],
+  "summary_lines": [
+    "1. Select fertile, well-drained loam or medium black soil with pH 6.5 to 7.5.",
+    "2. Transplant 45-day nursery seedlings on raised beds with drip irrigation.",
+    "3. Balance organic compost with recommended split basal NPK application."
+  ],
+  "steps": [
+    "1. Treat seedling roots in Carbendazim + Chlorpyriphos solution before transplanting.",
+    "2. Provide light irrigation every 3 to 4 days through drip system.",
+    "3. Carry out timely shallow weeding within the first 30 days of establishment."
+  ],
+  "labels": ["Package of Practices", "University Recommended"],
+  "sources": ["State Agricultural University (MPKV Rahuri)", "Package of Practices"],
+  "speak_text": "For successful rabi crop cultivation, prepare raised beds with well-decomposed manure and follow recommended seedling spacing.",
+  "language": "en"
+}

@@ -21,8 +21,8 @@ def compute_farm_intelligence(profile: FarmerProfile) -> Dict[str, Any]:
     acres = profile.acres or 3.0
     lang = profile.language or "mr"
 
-    # 1. Fetch live or cached weather
-    weather = get_weather_forecast(district)
+    # 1. Fetch live or cached weather in requested language
+    weather = get_weather_forecast(district, lang=lang)
     current_weather = weather.get("current", {})
     weather_adv = weather.get("advisory", {})
     spray_flag = weather_adv.get("spray_flag", "green")

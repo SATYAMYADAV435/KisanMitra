@@ -827,11 +827,17 @@ class KisanApp {
   /* ---------------- Location Chooser Modal ---------------- */
 
   openLocationModal() {
-    this.handleStateChange(document.getElementById('loc-state-select').value);
+    const farm = this.dataManager.getActiveFarm() || {};
+    const stateSelect = document.getElementById('loc-state-select');
+    if (stateSelect && farm.state) {
+      stateSelect.value = farm.state;
+    }
+    const currentState = stateSelect ? stateSelect.value : (farm.state || 'Maharashtra');
+    this.handleStateChange(currentState, farm.district || 'nashik');
     this.openModal('location-modal');
   }
 
-  handleStateChange(state) {
+  handleStateChange(state, selectedDistrictId = null) {
     const grid = document.getElementById('loc-districts-grid');
     if (!grid) return;
     grid.innerHTML = '';
@@ -841,12 +847,17 @@ class KisanApp {
       { id: 'nashik', name: { mr: 'नाशिक', hi: 'नासिक', en: 'Nashik' } },
       { id: 'pune', name: { mr: 'पुणे', hi: 'पुणे', en: 'Pune' } },
       { id: 'solapur', name: { mr: 'सोलापूर', hi: 'सोलापुर', en: 'Solapur' } },
-      { id: 'ahmednagar', name: { mr: 'अहिल्यानगर', hi: 'अहमदनगर', en: 'Ahmednagar' } }
+      { id: 'ahmednagar', name: { mr: 'अहिल्यानगर', hi: 'अहमदनगर', en: 'Ahmednagar' } },
+      { id: 'nagpur', name: { mr: 'नागपूर', hi: 'नागपुर', en: 'Nagpur' } },
+      { id: 'kolhapur', name: { mr: 'कोल्हापूर', hi: 'कोल्हापुर', en: 'Kolhapur' } }
     ];
 
-    listToRender.forEach((d, idx) => {
+    const targetDistrict = selectedDistrictId || (listToRender[0] ? listToRender[0].id : 'nashik');
+
+    listToRender.forEach((d) => {
+      const isSelected = d.id === targetDistrict;
       const item = document.createElement('div');
-      item.className = `choice-card-item ${idx === 0 ? 'selected' : ''}`;
+      item.className = `choice-card-item ${isSelected ? 'selected' : ''}`;
       item.setAttribute('data-value', d.id);
       item.onclick = () => this.selectSurveyChoice('loc-districts-grid', item);
       const localizedDistrict = (d.name && d.name[this.currentLanguage]) || d.name?.en || d.id;
@@ -866,9 +877,21 @@ class KisanApp {
     if (farm) {
       farm.state = state;
       farm.district = district;
+
+      // Automatically align representative crop if current crop is unsuited for new zone
+      const distInfo = (this.regionsData.districts || []).find(d => d.id === district);
+      if (distInfo && distInfo.major_rabi_crops && distInfo.major_rabi_crops.length > 0) {
+        if (!distInfo.major_rabi_crops.includes(farm.current_crop)) {
+          farm.current_crop = distInfo.major_rabi_crops[0];
+        }
+      }
+
       await this.dataManager.saveFarm(farm);
       this.updateActiveFarmUI();
       await this.refreshFarmIntelligence();
+      if (this.activeTab === 'farms') {
+        this.renderFarmsListTab();
+      }
     }
 
     this.closeModal('location-modal');
@@ -1025,7 +1048,8 @@ class KisanApp {
             current_crop: farm.current_crop || 'onion',
             crop_stage: farm.crop_stage || 'vegetative',
             district: farm.district || 'nashik',
-            farm_name: farm.name
+            farm_name: farm.name,
+            language: this.currentLanguage
           }
         })
       });
@@ -1310,16 +1334,30 @@ class KisanApp {
   }
 
   async loadMockCard(flowName) {
-    const filename = `mock/${flowName}_mr.json`;
+    const lang = this.currentLanguage || 'en';
+    const filename = `mock/${flowName}_${lang}.json`;
+    const fallbackFilename = `mock/${flowName}_en.json`;
     try {
-      const res = await fetch(filename);
+      let res = await fetch(filename);
+      if (!res.ok) {
+        res = await fetch(fallbackFilename);
+      }
       if (res.ok) {
         const data = await res.json();
-        data.language = this.currentLanguage;
+        data.language = lang;
+
+        // Adapt district dynamically to active farm
+        const farm = this.dataManager.getActiveFarm();
+        if (farm && farm.district) {
+          const distUpper = farm.district.toUpperCase();
+          if (data.title) {
+            data.title = data.title.replace(/नाशिक/g, distUpper).replace(/नासिक/g, distUpper).replace(/Nashik/gi, distUpper);
+          }
+        }
         return data;
       }
     } catch (e) {
-      console.warn(`Could not load ${filename}:`, e);
+      console.warn(`Could not load mock card for ${flowName}:`, e);
     }
     return null;
   }

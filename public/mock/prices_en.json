@@ -1,0 +1,22 @@
+{
+  "title": "APMC Mandi Market Prices",
+  "metrics": [
+    { "label": "Modal Price", "value": "₹1,850 / qtl" },
+    { "label": "Min Price", "value": "₹1,200 / qtl" },
+    { "label": "Max Price", "value": "₹2,400 / qtl" }
+  ],
+  "summary_lines": [
+    "1. Modal price for Onion in primary APMC market is ₹1,850 per quintal.",
+    "2. Daily arrivals remain steady with moderate demand across regional trading yards.",
+    "3. High quality cured bulbs are fetching premium rates above ₹2,200 per quintal."
+  ],
+  "steps": [
+    "1. Grade produce into uniform sizes and discard damaged stock before dispatch.",
+    "2. Cure and dry bulbs thoroughly to prevent weight loss during transit.",
+    "3. Track daily APMC modal rates before loading vehicles."
+  ],
+  "labels": ["Official APMC Rates", "Representative Data"],
+  "sources": ["State Agricultural Marketing Board (MSAMB)", "APMC Market Committee"],
+  "speak_text": "Today the modal price in the APMC market is 1,850 rupees per quintal. Market demand is stable with premium prices for graded produce.",
+  "language": "en"
+}
